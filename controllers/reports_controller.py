@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
+import datetime as dt
 from utils.database import get_db
 from utils.helpers import serialize_doc
 from models.user_models import UserRole
@@ -9,8 +9,8 @@ class ReportsController:
     @staticmethod
     async def get_financial_reports(
         current_user: dict,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: Optional[dt.datetime] = None,
+        end_date: Optional[dt.datetime] = None,
         branch_id: Optional[str] = None,
         session: Optional[str] = None,
         class_filter: Optional[str] = None,
@@ -35,7 +35,7 @@ class ReportsController:
             filter_query["payment_date"] = {"$gte": start_date, "$lte": end_date}
         elif not start_date and not end_date:
             # Default to current month if no dates provided
-            now = datetime.utcnow()
+            now = dt.datetime.utcnow()
             start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             filter_query["payment_date"] = {"$gte": start_of_month}
 
@@ -190,7 +190,7 @@ class ReportsController:
                     "section": section,
                     "fees_type": fees_type
                 },
-                "generated_at": datetime.utcnow()
+                "generated_at": dt.datetime.utcnow()
             }
 
         except Exception as e:
@@ -201,8 +201,8 @@ class ReportsController:
         current_user: dict,
         branch_id: Optional[str] = None,
         course_id: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        start_date: Optional[dt.datetime] = None,
+        end_date: Optional[dt.datetime] = None
     ):
         """Get comprehensive student reports"""
         if not current_user:
@@ -278,7 +278,7 @@ class ReportsController:
                     "attendance_statistics": serialize_doc(attendance_stats),
                     "students_by_branch": serialize_doc(students_by_branch)
                 },
-                "generated_at": datetime.utcnow()
+                "generated_at": dt.datetime.utcnow()
             }
 
         except Exception as e:
@@ -288,8 +288,8 @@ class ReportsController:
     async def get_coach_reports(
         current_user: dict,
         branch_id: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        start_date: Optional[dt.datetime] = None,
+        end_date: Optional[dt.datetime] = None
     ):
         """Get comprehensive coach reports"""
         if not current_user:
@@ -360,7 +360,7 @@ class ReportsController:
                     "coach_ratings": serialize_doc(coach_ratings),
                     "coaches_by_branch": serialize_doc(coaches_by_branch)
                 },
-                "generated_at": datetime.utcnow()
+                "generated_at": dt.datetime.utcnow()
             }
 
         except Exception as e:
@@ -369,95 +369,243 @@ class ReportsController:
     @staticmethod
     async def get_branch_reports(
         current_user: dict,
-        branch_id: Optional[str] = None
+        branch_id: Optional[str] = None,
+        metric: Optional[str] = None,
+        date_range: Optional[str] = None,
+        status: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50
     ):
-        """Get comprehensive branch reports"""
+        """Get comprehensive branch reports with filtering and search"""
         if not current_user:
             raise HTTPException(status_code=401, detail="Authentication required")
 
         db = get_db()
 
-        # Build filter query
-        filter_query = {}
+        # Build filter query for branches
+        branch_filter = {}
         if current_user["role"] == "coach_admin" and current_user.get("branch_id"):
-            filter_query["id"] = current_user["branch_id"]
-        elif branch_id:
-            filter_query["id"] = branch_id
+            branch_filter["id"] = current_user["branch_id"]
+        elif branch_id and branch_id != "all":
+            branch_filter["id"] = branch_id
+
+        if status and status != "all":
+            if status == "active":
+                branch_filter["is_active"] = True
+            elif status == "inactive":
+                branch_filter["is_active"] = False
+
+        # Build date filter for revenue calculations
+        date_filter = {}
+        if date_range and date_range != "all":
+            now = dt.datetime.utcnow()
+
+            if date_range == "current-month":
+                start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                date_filter["created_at"] = {"$gte": start_date}
+            elif date_range == "last-month":
+                last_month = now.replace(day=1) - dt.timedelta(days=1)
+                start_date = last_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                end_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                date_filter["created_at"] = {"$gte": start_date, "$lt": end_date}
+            elif date_range == "current-quarter":
+                quarter_start = now.replace(month=((now.month-1)//3)*3+1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                date_filter["created_at"] = {"$gte": quarter_start}
+            elif date_range == "current-year":
+                year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                date_filter["created_at"] = {"$gte": year_start}
 
         try:
-            # Branch performance statistics
-            branch_stats = await db.branches.aggregate([
-                {"$match": filter_query if filter_query else {}},
+            # Get comprehensive branch statistics with enrollments and revenue
+            branch_pipeline = [
+                {"$match": branch_filter},
+                # Get enrollments for each branch
                 {"$lookup": {
-                    "from": "users",
+                    "from": "enrollments",
                     "localField": "id",
                     "foreignField": "branch_id",
-                    "as": "branch_users"
+                    "as": "enrollments"
                 }},
+                # Get coaches for each branch
                 {"$lookup": {
-                    "from": "courses",
+                    "from": "coaches",
                     "localField": "id",
                     "foreignField": "branch_id",
-                    "as": "branch_courses"
+                    "as": "coaches"
                 }},
+                # Calculate statistics
+                {"$addFields": {
+                    "total_enrollments": {"$size": "$enrollments"},
+                    "active_enrollments": {
+                        "$size": {
+                            "$filter": {
+                                "input": "$enrollments",
+                                "cond": {"$eq": ["$$this.is_active", True]}
+                            }
+                        }
+                    },
+                    "total_coaches": {"$size": "$coaches"},
+                    "active_coaches": {
+                        "$size": {
+                            "$filter": {
+                                "input": "$coaches",
+                                "cond": {"$eq": ["$$this.is_active", True]}
+                            }
+                        }
+                    }
+                }},
+                # Project final fields
                 {"$project": {
-                    "name": 1,
-                    "location": 1,
-                    "state": 1,
-                    "total_students": {
-                        "$size": {
-                            "$filter": {
-                                "input": "$branch_users",
-                                "cond": {"$eq": ["$$this.role", "student"]}
-                            }
-                        }
-                    },
-                    "total_coaches": {
-                        "$size": {
-                            "$filter": {
-                                "input": "$branch_users",
-                                "cond": {"$eq": ["$$this.role", "coach"]}
-                            }
-                        }
-                    },
-                    "total_courses": {"$size": "$branch_courses"}
-                }}
-            ]).to_list(50)
+                    "id": 1,
+                    "branch_name": {"$ifNull": ["$branch.name", "$name"]},
+                    "branch_code": {"$ifNull": ["$branch.code", "$code"]},
+                    "location": {"$ifNull": ["$branch.address.city", "$location"]},
+                    "state": {"$ifNull": ["$branch.address.state", "$state"]},
+                    "is_active": {"$ifNull": ["$is_active", True]},
+                    "total_enrollments": 1,
+                    "active_enrollments": 1,
+                    "total_coaches": 1,
+                    "active_coaches": 1,
+                    "created_at": 1,
+                    "updated_at": 1
+                }},
+                {"$skip": skip},
+                {"$limit": limit}
+            ]
 
-            # Revenue by branch
-            revenue_by_branch = await db.payments.aggregate([
-                {"$match": {"payment_status": {"$in": ["paid", "completed"]}}},
-                {"$lookup": {
-                    "from": "users",
-                    "localField": "student_id",
-                    "foreignField": "id",
-                    "as": "student_info"
-                }},
-                {"$unwind": "$student_info"},
-                {"$group": {
-                    "_id": "$student_info.branch_id",
-                    "total_revenue": {"$sum": "$amount"},
-                    "total_transactions": {"$sum": 1}
-                }},
-                {"$lookup": {
-                    "from": "branches",
-                    "localField": "_id",
-                    "foreignField": "id",
-                    "as": "branch_info"
-                }},
-                {"$unwind": "$branch_info"}
-            ]).to_list(50)
+            branches = await db.branches.aggregate(branch_pipeline).to_list(limit)
+
+            # Calculate revenue and performance for each branch
+            for branch in branches:
+                # Get revenue from enrollments
+                revenue_pipeline = [
+                    {"$match": {
+                        "branch_id": branch["id"],
+                        "payment_status": {"$in": ["paid", "completed"]},
+                        **date_filter
+                    }},
+                    {"$group": {
+                        "_id": None,
+                        "total_revenue": {"$sum": "$fee_amount"},
+                        "total_transactions": {"$sum": 1}
+                    }}
+                ]
+
+                revenue_result = await db.enrollments.aggregate(revenue_pipeline).to_list(1)
+                if revenue_result:
+                    branch["total_revenue"] = revenue_result[0]["total_revenue"]
+                    branch["total_transactions"] = revenue_result[0]["total_transactions"]
+                else:
+                    branch["total_revenue"] = 0
+                    branch["total_transactions"] = 0
+
+                # Calculate performance score based on multiple metrics
+                performance_score = 0
+                if branch["total_enrollments"] > 0:
+                    enrollment_rate = (branch["active_enrollments"] / branch["total_enrollments"]) * 100
+                    performance_score += enrollment_rate * 0.4
+
+                if branch["total_coaches"] > 0:
+                    coach_utilization = (branch["active_coaches"] / branch["total_coaches"]) * 100
+                    performance_score += coach_utilization * 0.3
+
+                # Revenue factor (normalized)
+                if branch["total_revenue"] > 0:
+                    revenue_factor = min(branch["total_revenue"] / 100000 * 30, 30)  # Max 30 points
+                    performance_score += revenue_factor
+
+                branch["performance_score"] = round(performance_score, 1)
+                branch["status"] = "active" if branch.get("is_active", True) else "inactive"
+
+            # Get total count for pagination
+            total_count = await db.branches.count_documents(branch_filter)
 
             return {
-                "branch_reports": {
-                    "branch_statistics": serialize_doc(branch_stats),
-                    "revenue_by_branch": serialize_doc(revenue_by_branch)
+                "branches": serialize_doc(branches),
+                "pagination": {
+                    "total": total_count,
+                    "skip": skip,
+                    "limit": limit,
+                    "has_more": skip + len(branches) < total_count
                 },
-                "generated_at": datetime.utcnow()
+                "summary": {
+                    "total_branches": total_count,
+                    "active_branches": len([b for b in branches if b.get("is_active", True)]),
+                    "total_enrollments": sum(b.get("total_enrollments", 0) for b in branches),
+                    "total_revenue": sum(b.get("total_revenue", 0) for b in branches)
+                },
+                "generated_at": dt.datetime.utcnow()
             }
 
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error generating branch reports: {str(e)}")
+            print(f"Error generating branch reports: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to generate branch reports: {str(e)}")
+
+    @staticmethod
+    async def get_branch_report_filters(current_user: dict):
+        """Get available filter options for branch reports"""
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
+        db = get_db()
+
+        try:
+            # Get all branches for branch filter
+            branches = await db.branches.find(
+                {},
+                {"id": 1, "branch.name": 1, "name": 1, "branch.code": 1, "code": 1}
+            ).to_list(100)
+
+            branch_options = []
+            for branch in branches:
+                name = branch.get("branch", {}).get("name") or branch.get("name", "Unknown Branch")
+                code = branch.get("branch", {}).get("code") or branch.get("code", "")
+                display_name = f"{name}" + (f" ({code})" if code else "")
+                branch_options.append({
+                    "id": branch["id"],
+                    "name": display_name
+                })
+
+            # Performance metrics options
+            metrics = [
+                {"id": "enrollment", "name": "Enrollment Rate"},
+                {"id": "revenue", "name": "Revenue"},
+                {"id": "retention", "name": "Student Retention"},
+                {"id": "satisfaction", "name": "Satisfaction Score"},
+                {"id": "attendance", "name": "Attendance Rate"}
+            ]
+
+            # Date range options
+            date_ranges = [
+                {"id": "current-month", "name": "Current Month"},
+                {"id": "last-month", "name": "Last Month"},
+                {"id": "current-quarter", "name": "Current Quarter"},
+                {"id": "last-quarter", "name": "Last Quarter"},
+                {"id": "current-year", "name": "Current Year"},
+                {"id": "last-year", "name": "Last Year"}
+            ]
+
+            # Status options
+            statuses = [
+                {"id": "active", "name": "Active"},
+                {"id": "inactive", "name": "Inactive"},
+                {"id": "under-review", "name": "Under Review"},
+                {"id": "expanding", "name": "Expanding"}
+            ]
+
+            return {
+                "filters": {
+                    "branches": branch_options,
+                    "metrics": metrics,
+                    "date_ranges": date_ranges,
+                    "statuses": statuses
+                },
+                "generated_at": dt.datetime.utcnow()
+            }
+
+        except Exception as e:
+            print(f"Error loading branch report filters: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to load branch report filters: {str(e)}")
 
     @staticmethod
     async def get_course_reports(
@@ -546,7 +694,7 @@ class ReportsController:
                     "course_enrollment_statistics": serialize_doc(course_enrollment_stats),
                     "course_completion_statistics": serialize_doc(course_completion_stats)
                 },
-                "generated_at": datetime.utcnow()
+                "generated_at": dt.datetime.utcnow()
             }
 
         except Exception as e:
@@ -878,7 +1026,7 @@ class ReportsController:
                     "active_only": active_only,
                     "search": search
                 },
-                "generated_at": datetime.utcnow()
+                "generated_at": dt.datetime.utcnow()
             }
 
         except Exception as e:
@@ -961,8 +1109,237 @@ class ReportsController:
                         {"id": "false", "name": "Include Inactive"}
                     ]
                 },
-                "generated_at": datetime.utcnow()
+                "generated_at": dt.datetime.utcnow()
             }
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error getting master report filters: {str(e)}")
+
+    @staticmethod
+    async def get_course_reports(
+        current_user: dict,
+        branch_id: Optional[str] = None,
+        category_id: Optional[str] = None,
+        difficulty_level: Optional[str] = None,
+        active_only: bool = True,
+        search: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 20
+    ):
+        """Get course reports with filtering and search"""
+        try:
+            db = get_db()
+
+            # Build course filter
+            course_filter = {}
+            if active_only:
+                course_filter["settings.active"] = True
+            if category_id:
+                course_filter["category_id"] = category_id
+            if difficulty_level:
+                course_filter["difficulty_level"] = difficulty_level
+
+            # Search filter
+            if search:
+                search_regex = {"$regex": search, "$options": "i"}
+                course_filter["$or"] = [
+                    {"title": search_regex},
+                    {"code": search_regex},
+                    {"description": search_regex}
+                ]
+
+            # Build aggregation pipeline
+            pipeline = [
+                {"$match": course_filter},
+                {
+                    "$lookup": {
+                        "from": "categories",
+                        "localField": "category_id",
+                        "foreignField": "id",
+                        "as": "category"
+                    }
+                },
+                {
+                    "$lookup": {
+                        "from": "enrollments",
+                        "localField": "id",
+                        "foreignField": "course_id",
+                        "as": "enrollments"
+                    }
+                },
+                {
+                    "$addFields": {
+                        "category_name": {"$arrayElemAt": ["$category.name", 0]},
+                        "total_enrollments": {"$size": "$enrollments"},
+                        "active_enrollments": {
+                            "$size": {
+                                "$filter": {
+                                    "input": "$enrollments",
+                                    "cond": {"$eq": ["$$this.is_active", True]}
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+
+            # Add branch filter if specified
+            if branch_id:
+                pipeline.append({
+                    "$match": {
+                        "enrollments.branch_id": branch_id
+                    }
+                })
+
+            # Add sorting, skip, and limit
+            pipeline.extend([
+                {"$sort": {"title": 1}},
+                {"$skip": skip},
+                {"$limit": limit + 1}  # Get one extra to check if there are more
+            ])
+
+            # Execute aggregation
+            courses_cursor = db.courses.aggregate(pipeline)
+            courses = await courses_cursor.to_list(length=limit + 1)
+
+            # Check if there are more results
+            has_more = len(courses) > limit
+            if has_more:
+                courses = courses[:limit]
+
+            # Get total count for pagination
+            count_pipeline = [
+                {"$match": course_filter}
+            ]
+            if branch_id:
+                count_pipeline.extend([
+                    {
+                        "$lookup": {
+                            "from": "enrollments",
+                            "localField": "id",
+                            "foreignField": "course_id",
+                            "as": "enrollments"
+                        }
+                    },
+                    {
+                        "$match": {
+                            "enrollments.branch_id": branch_id
+                        }
+                    }
+                ])
+            count_pipeline.append({"$count": "total"})
+
+            count_result = await db.courses.aggregate(count_pipeline).to_list(length=1)
+            total_count = count_result[0]["total"] if count_result else 0
+
+            # Format course data
+            formatted_courses = []
+            for course in courses:
+                # Get branch-specific enrollment data if branch_id is specified
+                branch_enrollments = []
+                if branch_id:
+                    branch_enrollments = [e for e in course.get("enrollments", []) if e.get("branch_id") == branch_id]
+                else:
+                    branch_enrollments = course.get("enrollments", [])
+
+                formatted_course = {
+                    "id": course["id"],
+                    "title": course["title"],
+                    "code": course["code"],
+                    "description": course.get("description", ""),
+                    "difficulty_level": course.get("difficulty_level", ""),
+                    "category_name": course.get("category_name", "Unknown"),
+                    "pricing": course.get("pricing", {}),
+                    "total_enrollments": len(branch_enrollments),
+                    "active_enrollments": len([e for e in branch_enrollments if e.get("is_active", False)]),
+                    "inactive_enrollments": len([e for e in branch_enrollments if not e.get("is_active", True)]),
+                    "is_active": course.get("settings", {}).get("active", False),
+                    "offers_certification": course.get("settings", {}).get("offers_certification", False),
+                    "created_at": course.get("created_at"),
+                    "updated_at": course.get("updated_at")
+                }
+                formatted_courses.append(formatted_course)
+
+            return {
+                "courses": formatted_courses,
+                "pagination": {
+                    "total": total_count,
+                    "skip": skip,
+                    "limit": limit,
+                    "has_more": has_more
+                },
+                "summary": {
+                    "total_courses": total_count,
+                    "active_courses": len([c for c in formatted_courses if c["is_active"]]),
+                    "total_enrollments": sum(c["total_enrollments"] for c in formatted_courses),
+                    "active_enrollments": sum(c["active_enrollments"] for c in formatted_courses)
+                }
+            }
+
+        except Exception as e:
+            print(f"Error getting course reports: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error getting course reports: {str(e)}")
+
+    @staticmethod
+    async def get_course_report_filters(current_user: dict):
+        """Get filter options for course reports"""
+        try:
+            db = get_db()
+
+            # Get branches (filtered by user role)
+            branch_filter = {}
+            if current_user["role"] == "coach_admin" and current_user.get("branch_id"):
+                branch_filter["id"] = current_user["branch_id"]
+
+            branches_cursor = db.branches.find(branch_filter)
+            branches = await branches_cursor.to_list(length=100)
+            branch_options = []
+            for branch in branches:
+                # Handle both nested and direct branch structures
+                if 'branch' in branch and isinstance(branch['branch'], dict):
+                    name = branch['branch'].get('name', 'Unknown')
+                    code = branch['branch'].get('code', '')
+                else:
+                    name = branch.get('name', 'Unknown')
+                    code = branch.get('code', '')
+
+                display_name = f"{name} ({code})" if code else name
+                branch_options.append({"id": branch["id"], "name": display_name})
+
+            # Get categories
+            categories_cursor = db.categories.find({"is_active": True}, {"id": 1, "name": 1})
+            categories = await categories_cursor.to_list(length=100)
+            category_options = [
+                {"id": category["id"], "name": category["name"]}
+                for category in categories
+            ]
+
+            # Get difficulty levels from existing courses
+            difficulty_pipeline = [
+                {"$match": {"difficulty_level": {"$exists": True, "$ne": ""}}},
+                {"$group": {"_id": "$difficulty_level"}},
+                {"$sort": {"_id": 1}}
+            ]
+            difficulty_cursor = db.courses.aggregate(difficulty_pipeline)
+            difficulty_levels = await difficulty_cursor.to_list(length=50)
+            difficulty_options = [
+                {"id": level["_id"], "name": level["_id"]}
+                for level in difficulty_levels
+            ]
+
+            return {
+                "filters": {
+                    "branches": branch_options,
+                    "categories": category_options,
+                    "difficulty_levels": difficulty_options,
+                    "active_status": [
+                        {"id": "true", "name": "Active Only"},
+                        {"id": "false", "name": "Include Inactive"}
+                    ]
+                },
+                "generated_at": dt.datetime.utcnow()
+            }
+
+        except Exception as e:
+            print(f"Error getting course report filters: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error getting course report filters: {str(e)}")

@@ -61,19 +61,40 @@ async def get_coach_reports(
 @router.get("/branches")
 async def get_branch_reports(
     branch_id: Optional[str] = Query(None, description="Filter by specific branch ID"),
+    metric: Optional[str] = Query(None, description="Filter by performance metric"),
+    date_range: Optional[str] = Query(None, description="Filter by date range"),
+    status: Optional[str] = Query(None, description="Filter by branch status"),
+    skip: int = Query(0, ge=0, description="Number of records to skip for pagination"),
+    limit: int = Query(50, ge=1, le=100, description="Number of records to return"),
     current_user: dict = Depends(get_current_user_or_superadmin)
 ):
-    """Get comprehensive branch reports"""
-    return await ReportsController.get_branch_reports(current_user, branch_id)
+    """Get comprehensive branch reports with filtering and search"""
+    return await ReportsController.get_branch_reports(
+        current_user, branch_id, metric, date_range, status, skip, limit
+    )
+
+@router.get("/branches/filters")
+async def get_branch_report_filters(
+    current_user: dict = Depends(get_current_user_or_superadmin)
+):
+    """Get available filter options for branch reports"""
+    return await ReportsController.get_branch_report_filters(current_user)
 
 @router.get("/courses")
 async def get_course_reports(
     branch_id: Optional[str] = Query(None, description="Filter by branch ID"),
     category_id: Optional[str] = Query(None, description="Filter by category ID"),
+    difficulty_level: Optional[str] = Query(None, description="Filter by difficulty level"),
+    active_only: bool = Query(True, description="Filter only active courses"),
+    search: Optional[str] = Query(None, description="Search by title, code, or description"),
+    skip: int = Query(0, ge=0, description="Number of records to skip for pagination"),
+    limit: int = Query(20, ge=1, le=100, description="Number of records to return"),
     current_user: dict = Depends(get_current_user_or_superadmin)
 ):
-    """Get comprehensive course reports"""
-    return await ReportsController.get_course_reports(current_user, branch_id, category_id)
+    """Get comprehensive course reports with filtering and search"""
+    return await ReportsController.get_course_reports(
+        current_user, branch_id, category_id, difficulty_level, active_only, search, skip, limit
+    )
 
 @router.get("/filters")
 async def get_report_filters(
@@ -310,3 +331,10 @@ async def get_master_report_filters(
 ):
     """Get available filter options for master reports"""
     return await ReportsController.get_master_report_filters(current_user)
+
+@router.get("/courses/filters")
+async def get_course_report_filters(
+    current_user: dict = Depends(get_current_user_or_superadmin)
+):
+    """Get available filter options for course reports"""
+    return await ReportsController.get_course_report_filters(current_user)
