@@ -1,0 +1,18 @@
+2025-09-12 14:25:50,998 - asyncio - DEBUG - Using proactor: IocpProactor
+2025-09-12 14:25:52,082 - passlib.utils.compat - DEBUG - loaded lazy attr 'SafeConfigParser': <class 'configparser.ConfigParser'>
+2025-09-12 14:25:52,083 - passlib.utils.compat - DEBUG - loaded lazy attr 'NativeStringIO': <class '_io.StringIO'>
+2025-09-12 14:25:52,083 - passlib.utils.compat - DEBUG - loaded lazy attr 'BytesIO': <class '_io.BytesIO'>
+2025-09-12 14:25:53,009 - passlib.registry - DEBUG - registered 'bcrypt' handler: <class 'passlib.handlers.bcrypt.bcrypt'>
+2025-09-12 14:25:53,030 - __main__ - INFO - Starting email service test...
+2025-09-12 14:25:53,031 - utils.email_service - INFO - Loading email config - Host: sveats.cyberdetox.in, Port: 587
+2025-09-12 14:25:53,031 - utils.email_service - INFO - SMTP User: info@sveats.cyberdetox.in, Has Password: True
+2025-09-12 14:25:53,032 - utils.email_service - INFO - Email service enabled with SMTP host: sveats.cyberdetox.in:587
+2025-09-12 14:25:53,032 - utils.email_service - INFO - SMTP user: info@sveats.cyberdetox.in
+2025-09-12 14:25:53,032 - __main__ - INFO - SMTP Configuration:
+2025-09-12 14:25:53,032 - __main__ - INFO -   Host: sveats.cyberdetox.in
+2025-09-12 14:25:53,033 - __main__ - INFO -   Port: 587
+2025-09-12 14:25:53,033 - __main__ - INFO -   User: info@sveats.cyberdetox.in
+2025-09-12 14:25:53,033 - __main__ - INFO -   From: info@sveats.cyberdetox.in
+2025-09-12 14:25:53,033 - __main__ - INFO - Sending test email to: pittisunilkumar4@gmail.com
+2025-09-12 14:25:56,590 - email_monitor - INFO - [SUCCESS] general email sent successfully to pittisunilkumar4@gmail.com
+2025-09-12 14:25:56,604 - __main__ - INFO - Email test completed.

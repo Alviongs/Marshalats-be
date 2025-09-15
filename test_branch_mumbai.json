@@ -1,0 +1,78 @@
+{
+  "branch": {
+    "name": "Mumbai Martial Arts Academy",
+    "code": "MUM-001",
+    "email": "mumbai@martialarts.com",
+    "phone": "+91-9000000001",
+    "address": {
+      "line1": "110 Main Street",
+      "area": "Central Mumbai",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "pincode": "500001",
+      "country": "India"
+    }
+  },
+  "location_id": "a5340d14-62b6-43db-ab21-aa8136c31854",
+  "manager_id": "manager-a5340d14-62b6-43db-ab21-aa8136c31854",
+  "operational_details": {
+    "courses_offered": [
+      "Karate",
+      "Taekwondo",
+      "Kung Fu"
+    ],
+    "timings": [
+      {
+        "day": "Monday",
+        "open": "06:00",
+        "close": "22:00"
+      },
+      {
+        "day": "Tuesday",
+        "open": "06:00",
+        "close": "22:00"
+      },
+      {
+        "day": "Wednesday",
+        "open": "06:00",
+        "close": "22:00"
+      },
+      {
+        "day": "Thursday",
+        "open": "06:00",
+        "close": "22:00"
+      },
+      {
+        "day": "Friday",
+        "open": "06:00",
+        "close": "22:00"
+      },
+      {
+        "day": "Saturday",
+        "open": "08:00",
+        "close": "20:00"
+      },
+      {
+        "day": "Sunday",
+        "open": "08:00",
+        "close": "18:00"
+      }
+    ],
+    "holidays": [
+      "2025-01-01",
+      "2025-08-15",
+      "2025-10-02",
+      "2025-12-25"
+    ]
+  },
+  "assignments": {
+    "accessories_available": true,
+    "courses": [],
+    "branch_admins": []
+  },
+  "bank_details": {
+    "bank_name": "State Bank of Maharashtra",
+    "account_number": "12345678901",
+    "upi_id": "mumbai@sbi"
+  }
+}

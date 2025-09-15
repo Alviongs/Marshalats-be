@@ -1,0 +1,236 @@
+{
+  "info": {
+    "name": "Student Management API - Bearer Auth",
+    "description": "Complete API collection with Bearer Token authentication",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// This will run before each request"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8003/api",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.globals.set('auth_token', responseJson.access_token);",
+                  "    pm.test('Login successful', function () {",
+                  "        pm.response.to.have.status(200);",
+                  "    });",
+                  "    pm.test('Token received', function () {",
+                  "        pm.expect(responseJson.access_token).to.be.a('string');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"superadmin@test.com\",\n  \"password\": \"SuperAdmin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Register User",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"phone\": \"+1234567890\",\n  \"first_name\": \"New\",\n  \"last_name\": \"User\",\n  \"role\": \"student\",\n  \"password\": \"NewUser123!\",\n  \"date_of_birth\": \"1995-01-01\",\n  \"gender\": \"male\",\n  \"course\": {\n    \"category_id\": \"category-uuid\",\n    \"course_id\": \"course-uuid\",\n    \"duration\": \"6-months\"\n  },\n  \"branch\": {\n    \"location_id\": \"location-uuid\",\n    \"branch_id\": \"branch-uuid\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Branch Management",
+      "item": [
+        {
+          "name": "Get All Branches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/branches",
+              "host": ["{{base_url}}"],
+              "path": ["branches"]
+            }
+          }
+        },
+        {
+          "name": "Create Branch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branch\": {\n    \"name\": \"Rock martial arts\",\n    \"code\": \"RMA01\",\n    \"email\": \"yourname@email.com\",\n    \"phone\": \"+13455672356\",\n    \"address\": {\n      \"line1\": \"928#123\",\n      \"area\": \"Madhapur\",\n      \"city\": \"Hyderabad\",\n      \"state\": \"Telangana\",\n      \"pincode\": \"500089\",\n      \"country\": \"India\"\n    }\n  },\n  \"manager_id\": \"manager-uuid-1234\",\n  \"operational_details\": {\n    \"courses_offered\": [\"Rock martial arts\"],\n    \"timings\": [\n      { \"day\": \"Monday\", \"open\": \"07:00\", \"close\": \"19:00\" },\n      { \"day\": \"Tuesday\", \"open\": \"07:00\", \"close\": \"19:00\" }\n    ],\n    \"holidays\": [\"2025-10-02\", \"2025-12-25\"]\n  },\n  \"assignments\": {\n    \"accessories_available\": true,\n    \"courses\": [\"course-uuid-1\", \"course-uuid-2\", \"course-uuid-3\"],\n    \"branch_admins\": [\"coach-uuid-1\", \"coach-uuid-2\"]\n  },\n  \"bank_details\": {\n    \"bank_name\": \"State Bank of India\",\n    \"account_number\": \"XXXXXXXXXXXX\",\n    \"upi_id\": \"name@ybl\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/branches",
+              "host": ["{{base_url}}"],
+              "path": ["branches"]
+            }
+          }
+        },
+        {
+          "name": "Get Branch by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/branches/{{branch_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["branches", "{{branch_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Management",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            }
+          }
+        },
+        {
+          "name": "Create Coach (Nested Structure)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personal_info\": {\n    \"first_name\": \"Ravi\",\n    \"last_name\": \"Kumar\",\n    \"gender\": \"Male\",\n    \"date_of_birth\": \"1985-06-15\"\n  },\n  \"contact_info\": {\n    \"email\": \"coach@example.com\",\n    \"country_code\": \"+91\",\n    \"phone\": \"9876543210\",\n    \"password\": \"SecurePassword@123\"\n  },\n  \"address_info\": {\n    \"address\": \"123 MG Road\",\n    \"area\": \"Indiranagar\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"zip_code\": \"560038\",\n    \"country\": \"India\"\n  },\n  \"professional_info\": {\n    \"education_qualification\": \"Bachelor's Degree\",\n    \"professional_experience\": \"5+ years\",\n    \"designation_id\": \"designation-uuid-1234\",\n    \"certifications\": [\n      \"Black Belt in Karate\",\n      \"Certified Fitness Trainer\"\n    ]\n  },\n  \"areas_of_expertise\": [\n    \"Taekwondo\",\n    \"Karate\",\n    \"Kung Fu\",\n    \"Mixed Martial Arts\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/coaches",
+              "host": ["{{base_url}}"],
+              "path": ["users", "coaches"]
+            }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"phone\": \"+1234567890\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\",\n  \"role\": \"student\",\n  \"date_of_birth\": \"1995-01-01\",\n  \"gender\": \"male\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

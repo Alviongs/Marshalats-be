@@ -1,0 +1,78 @@
+{
+  "branch": {
+    "name": "Hyderabad Martial Arts Academy",
+    "code": "HYD-001",
+    "email": "hyderabad@martialarts.com",
+    "phone": "+91-9000000000",
+    "address": {
+      "line1": "100 Main Street",
+      "area": "Central Hyderabad",
+      "city": "Hyderabad",
+      "state": "Telangana",
+      "pincode": "500000",
+      "country": "India"
+    }
+  },
+  "location_id": "07a19e09-0ef3-49ef-ba1d-4278af845685",
+  "manager_id": "manager-07a19e09-0ef3-49ef-ba1d-4278af845685",
+  "operational_details": {
+    "courses_offered": [
+      "Karate",
+      "Taekwondo",
+      "Kung Fu"
+    ],
+    "timings": [
+      {
+        "day": "Monday",
+        "open": "06:00",
+        "close": "22:00"
+      },
+      {
+        "day": "Tuesday",
+        "open": "06:00",
+        "close": "22:00"
+      },
+      {
+        "day": "Wednesday",
+        "open": "06:00",
+        "close": "22:00"
+      },
+      {
+        "day": "Thursday",
+        "open": "06:00",
+        "close": "22:00"
+      },
+      {
+        "day": "Friday",
+        "open": "06:00",
+        "close": "22:00"
+      },
+      {
+        "day": "Saturday",
+        "open": "08:00",
+        "close": "20:00"
+      },
+      {
+        "day": "Sunday",
+        "open": "08:00",
+        "close": "18:00"
+      }
+    ],
+    "holidays": [
+      "2025-01-01",
+      "2025-08-15",
+      "2025-10-02",
+      "2025-12-25"
+    ]
+  },
+  "assignments": {
+    "accessories_available": true,
+    "courses": [],
+    "branch_admins": []
+  },
+  "bank_details": {
+    "bank_name": "State Bank of Telangana",
+    "account_number": "12345678900",
+    "upi_id": "hyderabad@sbi"
+  }
+}

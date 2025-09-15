@@ -1,0 +1,19 @@
+{
+  "total_sent": 34,
+  "total_failed": 3,
+  "password_resets": 13,
+  "last_reset": "2025-09-09T21:14:21.033662",
+  "daily_stats": {
+    "2025-09-09": {
+      "sent": 28,
+      "failed": 2
+    },
+    "2025-09-12": {
+      "sent": 6,
+      "failed": 1
+    }
+  },
+  "error_types": {
+    "(535, b'Incorrect authentication data')": 1
+  }
+}

@@ -1,0 +1,7 @@
+2025-09-12 14:16:26,820 - INFO - [SUCCESS] general email sent successfully to pittisunilkumar3@gmail.com
+2025-09-12 14:17:56,628 - INFO - [SUCCESS] general email sent successfully to pittisunilkumar4@gmail.com
+2025-09-12 14:22:23,285 - INFO - [SUCCESS] general email sent successfully to pittisunilkumar4@gmail.com
+2025-09-12 14:25:56,590 - INFO - [SUCCESS] general email sent successfully to pittisunilkumar4@gmail.com
+2025-09-12 14:26:47,098 - INFO - [SUCCESS] general email sent successfully to pittisunilkumar4@gmail.com
+2025-09-12 14:29:43,445 - ERROR - [FAILURE] general email failed to pittisunilkumar4@gmail.com: (535, b'Incorrect authentication data')
+2025-09-12 14:31:01,394 - INFO - [SUCCESS] general email sent successfully to pittisunilkumar4@gmail.com
