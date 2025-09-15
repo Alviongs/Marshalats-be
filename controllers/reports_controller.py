@@ -747,3 +747,222 @@ class ReportsController:
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error getting report filters: {str(e)}")
+
+    @staticmethod
+    async def get_master_reports(
+        current_user: dict,
+        branch_id: Optional[str] = None,
+        course_id: Optional[str] = None,
+        area_of_expertise: Optional[str] = None,
+        professional_experience: Optional[str] = None,
+        designation_id: Optional[str] = None,
+        active_only: bool = True,
+        search: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50
+    ):
+        """Get comprehensive master (coach) reports with filtering and search"""
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
+        db = get_db()
+
+        try:
+            # Build filter query
+            filter_query = {"role": "coach"}
+
+            # Apply role-based filtering
+            if current_user["role"] == "coach_admin" and current_user.get("branch_id"):
+                filter_query["branch_id"] = current_user["branch_id"]
+            elif branch_id:
+                filter_query["branch_id"] = branch_id
+
+            # Apply filters
+            if active_only:
+                filter_query["is_active"] = True
+
+            if area_of_expertise:
+                filter_query["areas_of_expertise"] = {"$in": [area_of_expertise]}
+
+            if professional_experience:
+                filter_query["professional_info.professional_experience"] = professional_experience
+
+            if designation_id:
+                filter_query["professional_info.designation_id"] = designation_id
+
+            if course_id:
+                filter_query["assignment_details.courses"] = {"$in": [course_id]}
+
+            # Apply search filter
+            if search and len(search.strip()) >= 2:
+                search_pattern = {"$regex": search.strip(), "$options": "i"}
+                filter_query["$or"] = [
+                    {"full_name": search_pattern},
+                    {"contact_info.email": search_pattern},
+                    {"contact_info.phone": search_pattern},
+                    {"personal_info.first_name": search_pattern},
+                    {"personal_info.last_name": search_pattern}
+                ]
+
+            # Get total count for pagination
+            total_count = await db.users.count_documents(filter_query)
+
+            # Get coaches with pagination
+            coaches_cursor = db.users.find(filter_query).skip(skip).limit(limit)
+            coaches = await coaches_cursor.to_list(length=limit)
+
+            # Process coaches data and join with related information
+            processed_coaches = []
+            for coach in coaches:
+                # Get branch information
+                branch_info = None
+                if coach.get("branch_id"):
+                    branch_doc = await db.branches.find_one({"id": coach["branch_id"]})
+                    if branch_doc:
+                        branch_info = {
+                            "id": branch_doc["id"],
+                            "name": branch_doc["branch"]["name"],
+                            "code": branch_doc["branch"]["code"]
+                        }
+
+                # Get course information
+                course_details = []
+                assigned_courses = coach.get("assignment_details", {}).get("courses", [])
+                if assigned_courses:
+                    courses_cursor = db.courses.find({"id": {"$in": assigned_courses}})
+                    courses = await courses_cursor.to_list(length=100)
+                    course_details = [
+                        {
+                            "id": course["id"],
+                            "title": course["title"],
+                            "code": course.get("code", ""),
+                            "difficulty_level": course.get("difficulty_level", "")
+                        }
+                        for course in courses
+                    ]
+
+                # Build processed coach data
+                processed_coach = {
+                    "id": coach["id"],
+                    "full_name": coach.get("full_name", ""),
+                    "first_name": coach.get("personal_info", {}).get("first_name", ""),
+                    "last_name": coach.get("personal_info", {}).get("last_name", ""),
+                    "email": coach.get("contact_info", {}).get("email", ""),
+                    "phone": coach.get("contact_info", {}).get("phone", ""),
+                    "branch": branch_info,
+                    "assigned_courses": course_details,
+                    "areas_of_expertise": coach.get("areas_of_expertise", []),
+                    "professional_experience": coach.get("professional_info", {}).get("professional_experience", ""),
+                    "designation": coach.get("professional_info", {}).get("designation_id", ""),
+                    "is_active": coach.get("is_active", False),
+                    "join_date": coach.get("assignment_details", {}).get("join_date"),
+                    "created_at": coach.get("created_at"),
+                    "updated_at": coach.get("updated_at")
+                }
+                processed_coaches.append(processed_coach)
+
+            return {
+                "masters": serialize_doc(processed_coaches),
+                "pagination": {
+                    "total": total_count,
+                    "skip": skip,
+                    "limit": limit,
+                    "has_more": skip + limit < total_count
+                },
+                "filters_applied": {
+                    "branch_id": branch_id,
+                    "course_id": course_id,
+                    "area_of_expertise": area_of_expertise,
+                    "professional_experience": professional_experience,
+                    "designation_id": designation_id,
+                    "active_only": active_only,
+                    "search": search
+                },
+                "generated_at": datetime.utcnow()
+            }
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error getting master reports: {str(e)}")
+
+    @staticmethod
+    async def get_master_report_filters(current_user: dict):
+        """Get available filter options for master reports"""
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
+        db = get_db()
+
+        try:
+            # Get branches (filtered by user role)
+            branch_filter = {}
+            if current_user["role"] == "coach_admin" and current_user.get("branch_id"):
+                branch_filter["id"] = current_user["branch_id"]
+
+            branches_cursor = db.branches.find(branch_filter)
+            branches = await branches_cursor.to_list(length=100)
+            branch_options = []
+            for branch in branches:
+                # Handle both nested and direct branch structures
+                if 'branch' in branch and isinstance(branch['branch'], dict):
+                    name = branch['branch'].get('name', 'Unknown')
+                    code = branch['branch'].get('code', '')
+                else:
+                    name = branch.get('name', 'Unknown')
+                    code = branch.get('code', '')
+
+                display_name = f"{name} ({code})" if code else name
+                branch_options.append({"id": branch["id"], "name": display_name})
+
+            # Get courses
+            courses_cursor = db.courses.find({"settings.active": True}, {"id": 1, "title": 1, "code": 1})
+            courses = await courses_cursor.to_list(length=200)
+            course_options = [
+                {"id": course["id"], "name": f"{course['title']} ({course.get('code', '')})"}
+                for course in courses
+            ]
+
+            # Get unique areas of expertise from coaches
+            areas_pipeline = [
+                {"$match": {"role": "coach", "areas_of_expertise": {"$exists": True, "$ne": []}}},
+                {"$unwind": "$areas_of_expertise"},
+                {"$group": {"_id": "$areas_of_expertise"}},
+                {"$sort": {"_id": 1}}
+            ]
+            areas_result = await db.users.aggregate(areas_pipeline).to_list(100)
+            area_options = [{"id": area["_id"], "name": area["_id"]} for area in areas_result]
+
+            # Get unique professional experience levels
+            experience_pipeline = [
+                {"$match": {"role": "coach", "professional_info.professional_experience": {"$exists": True, "$ne": None}}},
+                {"$group": {"_id": "$professional_info.professional_experience"}},
+                {"$sort": {"_id": 1}}
+            ]
+            experience_result = await db.users.aggregate(experience_pipeline).to_list(20)
+            experience_options = [{"id": exp["_id"], "name": exp["_id"]} for exp in experience_result]
+
+            # Get unique designations
+            designation_pipeline = [
+                {"$match": {"role": "coach", "professional_info.designation_id": {"$exists": True, "$ne": None}}},
+                {"$group": {"_id": "$professional_info.designation_id"}},
+                {"$sort": {"_id": 1}}
+            ]
+            designation_result = await db.users.aggregate(designation_pipeline).to_list(20)
+            designation_options = [{"id": des["_id"], "name": des["_id"]} for des in designation_result]
+
+            return {
+                "filters": {
+                    "branches": branch_options,
+                    "courses": course_options,
+                    "areas_of_expertise": area_options,
+                    "professional_experience": experience_options,
+                    "designations": designation_options,
+                    "active_status": [
+                        {"id": "true", "name": "Active Only"},
+                        {"id": "false", "name": "Include Inactive"}
+                    ]
+                },
+                "generated_at": datetime.utcnow()
+            }
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error getting master report filters: {str(e)}")

@@ -283,3 +283,30 @@ async def get_income_report(
         },
         "generated_at": result["generated_at"]
     }
+
+# Master Report endpoints
+@router.get("/masters")
+async def get_master_reports(
+    branch_id: Optional[str] = Query(None, description="Filter by branch ID"),
+    course_id: Optional[str] = Query(None, description="Filter by course ID"),
+    area_of_expertise: Optional[str] = Query(None, description="Filter by area of expertise"),
+    professional_experience: Optional[str] = Query(None, description="Filter by professional experience level"),
+    designation_id: Optional[str] = Query(None, description="Filter by designation"),
+    active_only: bool = Query(True, description="Filter only active masters"),
+    search: Optional[str] = Query(None, description="Search by name, email, or phone"),
+    skip: int = Query(0, ge=0, description="Number of records to skip for pagination"),
+    limit: int = Query(50, ge=1, le=100, description="Number of records to return"),
+    current_user: dict = Depends(get_current_user_or_superadmin)
+):
+    """Get comprehensive master (coach) reports with filtering and search"""
+    return await ReportsController.get_master_reports(
+        current_user, branch_id, course_id, area_of_expertise,
+        professional_experience, designation_id, active_only, search, skip, limit
+    )
+
+@router.get("/masters/filters")
+async def get_master_report_filters(
+    current_user: dict = Depends(get_current_user_or_superadmin)
+):
+    """Get available filter options for master reports"""
+    return await ReportsController.get_master_report_filters(current_user)
