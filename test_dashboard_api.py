@@ -19,7 +19,7 @@ def test_dashboard_api():
     
     for cred in credentials:
         try:
-            login_response = requests.post('http://localhost:8003/api/auth/login', json=cred)
+            login_response = requests.post('http://31.97.224.169:8003/api/auth/login', json=cred)
             if login_response.status_code == 200:
                 data = login_response.json()
                 print(f'✅ Login successful with {cred["email"]}')
@@ -39,7 +39,7 @@ def test_dashboard_api():
     headers = {'Authorization': f'Bearer {token}'}
     
     try:
-        stats_response = requests.get('http://localhost:8003/api/dashboard/stats', headers=headers)
+        stats_response = requests.get('http://31.97.224.169:8003/api/dashboard/stats', headers=headers)
         
         if stats_response.status_code == 200:
             stats_data = stats_response.json()
@@ -54,7 +54,7 @@ def test_dashboard_api():
     # Test coaches endpoint
     print('\n👨‍🏫 Testing coaches endpoint...')
     try:
-        coaches_response = requests.get('http://localhost:8003/api/coaches', headers=headers)
+        coaches_response = requests.get('http://31.97.224.169:8003/api/coaches', headers=headers)
         
         if coaches_response.status_code == 200:
             coaches_data = coaches_response.json()

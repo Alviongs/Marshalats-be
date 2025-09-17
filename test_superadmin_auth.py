@@ -6,7 +6,7 @@ Test script to verify superadmin authentication works with coach endpoints
 import requests
 import json
 
-BASE_URL = "http://localhost:8003"
+BASE_URL = "http://31.97.224.169:8003"
 
 def test_superadmin_auth():
     """Test superadmin authentication flow"""

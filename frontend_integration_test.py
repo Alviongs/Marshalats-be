@@ -20,7 +20,7 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 class FrontendIntegrationTest:
     def __init__(self):
         load_dotenv()
-        self.backend_url = "http://localhost:8003"
+        self.backend_url = "http://31.97.224.169:8003"
         self.frontend_url = "http://localhost:3022"
         self.test_email = "pittisunilkumar@gmail.com"  # Correct email from database
         

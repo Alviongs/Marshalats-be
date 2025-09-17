@@ -259,7 +259,7 @@ Email Diagnostic System
         self.print_section("API Endpoint Test")
         
         try:
-            url = 'http://localhost:8003/auth/forgot-password'
+            url = 'http://31.97.224.169:8003/auth/forgot-password'
             data = {'email': self.test_email}
             
             print(f"🌐 Testing API endpoint: {url}")

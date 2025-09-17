@@ -9,7 +9,7 @@ def show_complete_branch_structure():
     """Show the complete structure that is stored and returned"""
     
     # Login as super admin
-    login_url = "http://localhost:8003/api/auth/login"
+    login_url = "http://31.97.224.169:8003/api/auth/login"
     login_data = {
         "email": "superadmin@test.com",
         "password": "SuperAdmin123!"
@@ -26,7 +26,7 @@ def show_complete_branch_structure():
         token = login_response.json()["access_token"]
         
         # Get branches
-        branch_url = "http://localhost:8003/api/branches"
+        branch_url = "http://31.97.224.169:8003/api/branches"
         headers = {"Authorization": f"Bearer {token}"}
         
         response = requests.get(branch_url, headers=headers)

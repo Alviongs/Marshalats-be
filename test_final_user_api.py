@@ -6,7 +6,7 @@ import requests
 import json
 
 def test_user_api_final():
-    BASE_URL = "http://localhost:8003"
+    BASE_URL = "http://31.97.224.169:8003"
     
     print("🔬 Final User List API Test")
     print("=" * 40)

@@ -13,7 +13,7 @@ def test_user_api():
     print("1. Getting superadmin token...")
     login_cmd = """
     $body = '{"email": "testsuperadmin@example.com", "password": "TestSuperAdmin123!"}'
-    $response = Invoke-RestMethod -Uri "http://localhost:8003/api/superadmin/login" -Method POST -Body $body -ContentType "application/json"
+    $response = Invoke-RestMethod -Uri "http://31.97.224.169:8003/api/superadmin/login" -Method POST -Body $body -ContentType "application/json"
     $response.data.token
     """
     
@@ -27,7 +27,7 @@ def test_user_api():
             print("2. Testing user list...")
             user_cmd = f"""
             $headers = @{{"Authorization" = "Bearer {token}"}}
-            $response = Invoke-RestMethod -Uri "http://localhost:8003/api/users" -Method GET -Headers $headers
+            $response = Invoke-RestMethod -Uri "http://31.97.224.169:8003/api/users" -Method GET -Headers $headers
             $response | ConvertTo-Json
             """
             

@@ -3,7 +3,7 @@ Write-Host "🧪 Testing Enhanced Courses API" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 
 try {
-    $response = Invoke-WebRequest -Uri "http://localhost:8003/api/courses/public/all" -Method GET
+    $response = Invoke-WebRequest -Uri "http://31.97.224.169:8003/api/courses/public/all" -Method GET
     
     if ($response.StatusCode -eq 200) {
         Write-Host "✅ API call successful!" -ForegroundColor Green

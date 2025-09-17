@@ -9,7 +9,7 @@ def analyze_current_state():
     # Get locations
     print("\n📍 Locations:")
     try:
-        response = requests.get('http://localhost:8003/api/locations/public/details?active_only=true')
+        response = requests.get('http://31.97.224.169:8003/api/locations/public/details?active_only=true')
         if response.status_code == 200:
             data = response.json()
             locations = data.get('locations', [])
@@ -26,7 +26,7 @@ def analyze_current_state():
     # Get all branches
     print("\n🏢 All branches:")
     try:
-        response = requests.get('http://localhost:8003/api/branches/public/all?active_only=true')
+        response = requests.get('http://31.97.224.169:8003/api/branches/public/all?active_only=true')
         if response.status_code == 200:
             data = response.json()
             branches = data.get('branches', [])
@@ -52,7 +52,7 @@ def analyze_current_state():
     print("\n🧪 Testing branch filtering by location:")
     try:
         # Get locations again for filtering test
-        response = requests.get('http://localhost:8003/api/locations/public/details?active_only=true')
+        response = requests.get('http://31.97.224.169:8003/api/locations/public/details?active_only=true')
         if response.status_code == 200:
             data = response.json()
             locations = data.get('locations', [])
@@ -61,7 +61,7 @@ def analyze_current_state():
                 location_id = loc['id']
                 location_name = loc['name']
                 
-                filter_response = requests.get(f'http://localhost:8003/api/branches/public/by-location/{location_id}?active_only=true')
+                filter_response = requests.get(f'http://31.97.224.169:8003/api/branches/public/by-location/{location_id}?active_only=true')
                 if filter_response.status_code == 200:
                     filter_data = filter_response.json()
                     branch_count = len(filter_data.get('branches', []))

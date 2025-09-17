@@ -12,7 +12,7 @@ import sys
 import os
 
 # Configuration
-BASE_URL = "http://localhost:8003"
+BASE_URL = "http://31.97.224.169:8003"
 FRONTEND_URL = "http://localhost:3022"
 
 class PaymentFlowTester:

@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-API_BASE_URL = "http://localhost:8003"
+API_BASE_URL = "http://31.97.224.169:8003"
 
 async def test_forgot_password():
     """Test the forgot password functionality"""
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     os.environ["TESTING"] = "True"
     
     print("🚀 Starting Forgot Password Tests")
-    print("Make sure the backend server is running on http://localhost:8003")
+    print("Make sure the backend server is running on http://31.97.224.169:8003")
     print()
     
     asyncio.run(test_forgot_password())

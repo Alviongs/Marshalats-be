@@ -70,7 +70,7 @@
 
 #### 1. Coach Login
 ```bash
-curl -X POST "http://localhost:8003/api/coaches/login" \
+curl -X POST "http://31.97.224.169:8003/api/coaches/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "coach@example.com",
@@ -80,7 +80,7 @@ curl -X POST "http://localhost:8003/api/coaches/login" \
 
 #### 2. Get Coach Profile
 ```bash
-curl -X GET "http://localhost:8003/api/coaches/me" \
+curl -X GET "http://31.97.224.169:8003/api/coaches/me" \
   -H "Authorization: Bearer <coach_token>"
 ```
 

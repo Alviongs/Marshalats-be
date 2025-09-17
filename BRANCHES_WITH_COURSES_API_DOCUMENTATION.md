@@ -138,28 +138,28 @@ The `/api/branches-with-courses` endpoint provides comprehensive branch and cour
 
 ### Get All Active Branches
 ```bash
-curl -X GET "http://localhost:8003/api/branches-with-courses" \
+curl -X GET "http://31.97.224.169:8003/api/branches-with-courses" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json"
 ```
 
 ### Get Specific Branch
 ```bash
-curl -X GET "http://localhost:8003/api/branches-with-courses?branch_id=c9ed7bb7-c31e-4b0f-9edf-760b41de9628" \
+curl -X GET "http://31.97.224.169:8003/api/branches-with-courses?branch_id=c9ed7bb7-c31e-4b0f-9edf-760b41de9628" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json"
 ```
 
 ### Get All Branches (Including Inactive)
 ```bash
-curl -X GET "http://localhost:8003/api/branches-with-courses?include_inactive=true" \
+curl -X GET "http://31.97.224.169:8003/api/branches-with-courses?include_inactive=true" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json"
 ```
 
 ### Filter by Status
 ```bash
-curl -X GET "http://localhost:8003/api/branches-with-courses?status=inactive" \
+curl -X GET "http://31.97.224.169:8003/api/branches-with-courses?status=inactive" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json"
 ```

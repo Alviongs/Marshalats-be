@@ -4,7 +4,7 @@ import requests
 import json
 
 # API base URL
-BASE_URL = "http://localhost:8003/api"
+BASE_URL = "http://31.97.224.169:8003/api"
 
 def get_token():
     """Get authentication token"""

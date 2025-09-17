@@ -15,7 +15,7 @@ def test_backend_connectivity():
     print('-'*40)
     
     try:
-        response = requests.get('http://localhost:8003/docs', timeout=10)
+        response = requests.get('http://31.97.224.169:8003/docs', timeout=10)
         if response.status_code == 200:
             print('✅ Backend server is running on port 8003')
             print('✅ FastAPI docs accessible')
@@ -37,7 +37,7 @@ def test_forgot_password_api():
     
     try:
         response = requests.post(
-            'http://localhost:8003/auth/forgot-password',
+            'http://31.97.224.169:8003/auth/forgot-password',
             json={'email': test_email},
             timeout=15
         )

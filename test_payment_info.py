@@ -6,7 +6,7 @@ Test the payment info endpoint specifically
 import requests
 import json
 
-BASE_URL = "http://localhost:8003"
+BASE_URL = "http://31.97.224.169:8003"
 
 def test_payment_info_endpoint():
     """Test the payment info endpoint with the exact parameters from the error"""

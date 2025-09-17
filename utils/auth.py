@@ -5,17 +5,26 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 import jwt
 import os
+from dotenv import load_dotenv
+from pathlib import Path
 
 from models.user_models import UserRole
 from models.payment_models import PaymentStatus
 from utils.database import get_db
 from utils.helpers import serialize_doc
 
+# Load environment variables
+ROOT_DIR = Path(__file__).parent.parent
+load_dotenv(ROOT_DIR / '.env')
+
 # Security setup
 security = HTTPBearer()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.environ.get('SECRET_KEY', 'student_management_secret_key_2025')
 ALGORITHM = "HS256"
+
+# Debug: Print the SECRET_KEY being used (first 20 chars only for security)
+print(f"🔑 auth.py using SECRET_KEY: {SECRET_KEY[:20]}...")
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
 def hash_password(password: str) -> str:

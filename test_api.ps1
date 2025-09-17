@@ -12,7 +12,7 @@ try {
         password = "TestSuperAdmin123!"
     } | ConvertTo-Json
     
-    $loginResponse = Invoke-RestMethod -Uri "http://localhost:8003/api/superadmin/login" -Method POST -Body $loginBody -ContentType "application/json"
+    $loginResponse = Invoke-RestMethod -Uri "http://31.97.224.169:8003/api/superadmin/login" -Method POST -Body $loginBody -ContentType "application/json"
     
     if ($loginResponse.data.token) {
         Write-Host "   ✅ Login successful" -ForegroundColor Green
@@ -25,7 +25,7 @@ try {
             "Authorization" = "Bearer $token"
         }
         
-        $userResponse = Invoke-RestMethod -Uri "http://localhost:8003/api/users" -Method GET -Headers $headers
+        $userResponse = Invoke-RestMethod -Uri "http://31.97.224.169:8003/api/users" -Method GET -Headers $headers
         
         Write-Host "   ✅ SUCCESS! User list API is working!" -ForegroundColor Green
         Write-Host "   📊 Total users: $($userResponse.total)" -ForegroundColor White

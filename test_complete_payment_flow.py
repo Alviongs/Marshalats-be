@@ -7,7 +7,7 @@ import requests
 import json
 import time
 
-BASE_URL = "http://localhost:8003"
+BASE_URL = "http://31.97.224.169:8003"
 FRONTEND_URL = "http://localhost:3022"
 
 def test_payment_info_api():

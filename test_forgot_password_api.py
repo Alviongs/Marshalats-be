@@ -6,7 +6,7 @@ def test_forgot_password():
     """Test the forgot password API endpoint"""
     
     # Test the forgot password endpoint
-    url = 'http://localhost:8003/auth/forgot-password'
+    url = 'http://31.97.224.169:8003/auth/forgot-password'
     data = {'email': 'pittisunilkumar3@gmail.com'}
     
     print(f'🧪 Testing forgot password endpoint: {url}')
@@ -46,7 +46,7 @@ def test_forgot_password():
 def check_server_status():
     """Check if the server is running"""
     try:
-        response = requests.get('http://localhost:8003/docs', timeout=5)
+        response = requests.get('http://31.97.224.169:8003/docs', timeout=5)
         if response.status_code == 200:
             print('✅ Server is running on port 8003')
             return True

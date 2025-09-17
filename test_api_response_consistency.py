@@ -12,7 +12,7 @@ import time
 import sys
 from datetime import datetime
 
-BASE_URL = "http://localhost:8003"
+BASE_URL = "http://31.97.224.169:8003"
 
 class APIResponseConsistencyTester:
     def __init__(self):

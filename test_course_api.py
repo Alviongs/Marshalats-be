@@ -45,7 +45,7 @@ def test_courses_api():
 
     try:
         print("\n📡 Testing /api/courses/public/all endpoint...")
-        response = requests.get("http://localhost:8003/api/courses/public/all")
+        response = requests.get("http://31.97.224.169:8003/api/courses/public/all")
 
         if response.status_code == 200:
             data = response.json()

@@ -91,7 +91,7 @@ async def test_filtering_after_fix():
     # Test the API endpoints
     try:
         # Test all branches
-        response = requests.get('http://localhost:8003/api/branches/public/all?active_only=true')
+        response = requests.get('http://31.97.224.169:8003/api/branches/public/all?active_only=true')
         if response.status_code == 200:
             data = response.json()
             branches = data.get('branches', [])
@@ -103,7 +103,7 @@ async def test_filtering_after_fix():
         
         # Test filtering by location
         location_id = '07a19e09-0ef3-49ef-ba1d-4278af845685'  # Hyderabad
-        response = requests.get(f'http://localhost:8003/api/branches/public/by-location/{location_id}?active_only=true')
+        response = requests.get(f'http://31.97.224.169:8003/api/branches/public/by-location/{location_id}?active_only=true')
         if response.status_code == 200:
             data = response.json()
             filtered_branches = data.get('branches', [])

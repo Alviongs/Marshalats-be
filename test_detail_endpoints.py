@@ -5,7 +5,7 @@ import json
 import sys
 
 # API Configuration
-BASE_URL = "http://localhost:8003"
+BASE_URL = "http://31.97.224.169:8003"
 SUPERADMIN_EMAIL = "pittisunilkumar3@gmail.com"
 SUPERADMIN_PASSWORD = "StrongPassword@123"
 

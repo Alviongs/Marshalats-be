@@ -6,7 +6,7 @@ Test CORS configuration by making requests from different origins
 import requests
 import json
 
-BASE_URL = "http://localhost:8003"
+BASE_URL = "http://31.97.224.169:8003"
 
 def test_cors_headers():
     """Test CORS headers on the payment info endpoint"""

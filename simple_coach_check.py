@@ -6,7 +6,7 @@ Simple script to check coach data structure via API
 import requests
 import json
 
-BASE_URL = "http://localhost:8003"
+BASE_URL = "http://31.97.224.169:8003"
 
 def check_coach_data():
     """Check coach data structure via API"""

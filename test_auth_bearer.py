@@ -7,7 +7,7 @@ import json
 import time
 
 class APITester:
-    def __init__(self, base_url="http://localhost:8003/api"):
+    def __init__(self, base_url="http://31.97.224.169:8003/api"):
         self.base_url = base_url
         self.token = None
         self.headers = {"Content-Type": "application/json"}

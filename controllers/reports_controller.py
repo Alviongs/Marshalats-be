@@ -9,192 +9,317 @@ class ReportsController:
     @staticmethod
     async def get_financial_reports(
         current_user: dict,
-        start_date: Optional[dt.datetime] = None,
-        end_date: Optional[dt.datetime] = None,
         branch_id: Optional[str] = None,
-        session: Optional[str] = None,
-        class_filter: Optional[str] = None,
-        section: Optional[str] = None,
-        fees_type: Optional[str] = None
+        payment_type: Optional[str] = None,
+        payment_method: Optional[str] = None,
+        payment_status: Optional[str] = None,
+        date_range: Optional[str] = None,
+        amount_min: Optional[float] = None,
+        amount_max: Optional[float] = None,
+        search: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50
     ):
-        """Get comprehensive financial reports"""
+        """Get comprehensive financial reports with enhanced filtering and search"""
         if not current_user:
             raise HTTPException(status_code=401, detail="Authentication required")
 
         db = get_db()
-        
+
         # Build filter query based on user role and parameters
         filter_query = {}
         if current_user["role"] == "coach_admin" and current_user.get("branch_id"):
-            filter_query["branch_id"] = current_user["branch_id"]
-        elif branch_id:
-            filter_query["branch_id"] = branch_id
-        
-        # Add date range filter
-        if start_date and end_date:
-            filter_query["payment_date"] = {"$gte": start_date, "$lte": end_date}
-        elif not start_date and not end_date:
-            # Default to current month if no dates provided
+            filter_query["branch_details.branch_id"] = current_user["branch_id"]
+        elif branch_id and branch_id != "all":
+            filter_query["branch_details.branch_id"] = branch_id
+
+        # Add payment type filter
+        if payment_type and payment_type != "all":
+            filter_query["payment_type"] = payment_type
+
+        # Add payment method filter
+        if payment_method and payment_method != "all":
+            filter_query["payment_method"] = payment_method
+
+        # Add payment status filter
+        if payment_status and payment_status != "all":
+            filter_query["payment_status"] = payment_status
+
+        # Add amount range filter
+        if amount_min is not None or amount_max is not None:
+            amount_filter = {}
+            if amount_min is not None:
+                amount_filter["$gte"] = amount_min
+            if amount_max is not None:
+                amount_filter["$lte"] = amount_max
+            filter_query["amount"] = amount_filter
+
+        # Add search filter
+        if search:
+            search_filter = {
+                "$or": [
+                    {"transaction_id": {"$regex": search, "$options": "i"}},
+                    {"course_details.course_name": {"$regex": search, "$options": "i"}},
+                    {"branch_details.branch_name": {"$regex": search, "$options": "i"}},
+                    {"notes": {"$regex": search, "$options": "i"}}
+                ]
+            }
+            filter_query = {"$and": [filter_query, search_filter]} if filter_query else search_filter
+
+        # Build date filter
+        date_filter = {}
+        if date_range and date_range != "all":
             now = dt.datetime.utcnow()
-            start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            filter_query["payment_date"] = {"$gte": start_of_month}
+
+            if date_range == "current-month":
+                start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                date_filter["payment_date"] = {"$gte": start_date}
+            elif date_range == "last-month":
+                last_month = now.replace(day=1) - dt.timedelta(days=1)
+                start_date = last_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                end_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                date_filter["payment_date"] = {"$gte": start_date, "$lt": end_date}
+            elif date_range == "current-quarter":
+                quarter_start = now.replace(month=((now.month-1)//3)*3+1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                date_filter["payment_date"] = {"$gte": quarter_start}
+            elif date_range == "current-year":
+                year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                date_filter["payment_date"] = {"$gte": year_start}
+
+        # Combine filters
+        if date_filter:
+            if isinstance(filter_query, dict) and "$and" in filter_query:
+                filter_query["$and"].append(date_filter)
+            elif filter_query:
+                filter_query = {"$and": [filter_query, date_filter]}
+            else:
+                filter_query = date_filter
 
         try:
-            # Total Balance Fees Statement
-            total_balance_pipeline = [
-                {"$match": {**filter_query, "payment_status": {"$in": ["paid", "completed"]}}},
-                {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
-            ]
-            total_balance_result = await db.payments.aggregate(total_balance_pipeline).to_list(1)
-            total_balance = total_balance_result[0] if total_balance_result else {"total": 0, "count": 0}
-
-            # Balance Fees Statement (Pending)
-            balance_fees_pipeline = [
-                {"$match": {**filter_query, "payment_status": "pending"}},
-                {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
-            ]
-            balance_fees_result = await db.payments.aggregate(balance_fees_pipeline).to_list(1)
-            balance_fees = balance_fees_result[0] if balance_fees_result else {"total": 0, "count": 0}
-
-            # Daily Collection Report
-            daily_collection_pipeline = [
-                {"$match": {**filter_query, "payment_status": {"$in": ["paid", "completed"]}}},
-                {"$group": {
-                    "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$payment_date"}},
-                    "total": {"$sum": "$amount"},
-                    "count": {"$sum": 1}
-                }},
-                {"$sort": {"_id": -1}},
-                {"$limit": 30}
-            ]
-            daily_collection = await db.payments.aggregate(daily_collection_pipeline).to_list(30)
-
-            # Type Wise Balance Report (by payment type)
-            type_wise_pipeline = [
+            # Get detailed payment records with pagination
+            payment_pipeline = [
                 {"$match": filter_query},
+                {"$addFields": {
+                    "branch_name": {"$ifNull": ["$branch_details.branch_name", "Unknown Branch"]},
+                    "course_name": {"$ifNull": ["$course_details.course_name", "Unknown Course"]},
+                    "formatted_amount": "$amount",
+                    "formatted_date": {"$dateToString": {"format": "%Y-%m-%d", "date": "$payment_date"}},
+                    "formatted_due_date": {"$dateToString": {"format": "%Y-%m-%d", "date": "$due_date"}}
+                }},
+                {"$sort": {"payment_date": -1, "created_at": -1}},
+                {"$skip": skip},
+                {"$limit": limit}
+            ]
+
+            payments = await db.payments.aggregate(payment_pipeline).to_list(limit)
+
+            # Get total count for pagination
+            count_pipeline = [{"$match": filter_query}, {"$count": "total"}]
+            count_result = await db.payments.aggregate(count_pipeline).to_list(1)
+            total_count = count_result[0]["total"] if count_result else 0
+
+            # Calculate financial analytics
+            analytics_filter = filter_query.copy() if isinstance(filter_query, dict) else {}
+
+            # Total revenue by status
+            revenue_by_status_pipeline = [
+                {"$match": analytics_filter},
                 {"$group": {
-                    "_id": "$payment_type",
-                    "total": {"$sum": "$amount"},
+                    "_id": "$payment_status",
+                    "total_amount": {"$sum": "$amount"},
                     "count": {"$sum": 1}
                 }}
             ]
-            type_wise_balance = await db.payments.aggregate(type_wise_pipeline).to_list(10)
+            revenue_by_status = await db.payments.aggregate(revenue_by_status_pipeline).to_list(10)
 
-            # Fees Statement
-            fees_statement_pipeline = [
-                {"$match": {**filter_query, "payment_status": {"$in": ["paid", "completed"]}}},
-                {"$lookup": {
-                    "from": "users",
-                    "localField": "student_id",
-                    "foreignField": "id",
-                    "as": "student_info"
-                }},
-                {"$unwind": "$student_info"},
+            # Revenue by payment method
+            revenue_by_method_pipeline = [
+                {"$match": {**analytics_filter, "payment_status": {"$in": ["paid", "completed"]}}},
                 {"$group": {
-                    "_id": "$student_info.branch_id",
-                    "total": {"$sum": "$amount"},
+                    "_id": "$payment_method",
+                    "total_amount": {"$sum": "$amount"},
+                    "count": {"$sum": 1}
+                }}
+            ]
+            revenue_by_method = await db.payments.aggregate(revenue_by_method_pipeline).to_list(10)
+
+            # Revenue by payment type
+            revenue_by_type_pipeline = [
+                {"$match": {**analytics_filter, "payment_status": {"$in": ["paid", "completed"]}}},
+                {"$group": {
+                    "_id": "$payment_type",
+                    "total_amount": {"$sum": "$amount"},
+                    "count": {"$sum": 1}
+                }}
+            ]
+            revenue_by_type = await db.payments.aggregate(revenue_by_type_pipeline).to_list(10)
+
+            # Revenue by branch
+            revenue_by_branch_pipeline = [
+                {"$match": {**analytics_filter, "payment_status": {"$in": ["paid", "completed"]}}},
+                {"$group": {
+                    "_id": "$branch_details.branch_id",
+                    "branch_name": {"$first": "$branch_details.branch_name"},
+                    "total_amount": {"$sum": "$amount"},
                     "count": {"$sum": 1}
                 }},
-                {"$lookup": {
-                    "from": "branches",
-                    "localField": "_id",
-                    "foreignField": "id",
-                    "as": "branch_info"
-                }},
-                {"$unwind": "$branch_info"}
+                {"$sort": {"total_amount": -1}}
             ]
-            fees_statement = await db.payments.aggregate(fees_statement_pipeline).to_list(20)
+            revenue_by_branch = await db.payments.aggregate(revenue_by_branch_pipeline).to_list(20)
 
-            # Total Fee Collection Report
-            total_fee_collection_pipeline = [
-                {"$match": {**filter_query, "payment_status": {"$in": ["paid", "completed"]}}},
+            # Monthly revenue trend
+            monthly_revenue_pipeline = [
+                {"$match": {**analytics_filter, "payment_status": {"$in": ["paid", "completed"]}}},
                 {"$group": {
                     "_id": {"$dateToString": {"format": "%Y-%m", "date": "$payment_date"}},
-                    "total": {"$sum": "$amount"},
+                    "total_amount": {"$sum": "$amount"},
                     "count": {"$sum": 1}
                 }},
                 {"$sort": {"_id": -1}},
                 {"$limit": 12}
             ]
-            total_fee_collection = await db.payments.aggregate(total_fee_collection_pipeline).to_list(12)
+            monthly_revenue = await db.payments.aggregate(monthly_revenue_pipeline).to_list(12)
 
-            # Other Fees Collection Report
-            other_fees_pipeline = [
-                {"$match": {**filter_query, "payment_type": {"$ne": "tuition"}}},
+            # Outstanding payments (overdue)
+            outstanding_pipeline = [
+                {"$match": {
+                    **analytics_filter,
+                    "payment_status": {"$in": ["pending", "overdue"]},
+                    "due_date": {"$lt": dt.datetime.utcnow()}
+                }},
                 {"$group": {
-                    "_id": "$payment_type",
-                    "total": {"$sum": "$amount"},
+                    "_id": None,
+                    "total_amount": {"$sum": "$amount"},
                     "count": {"$sum": 1}
                 }}
             ]
-            other_fees_collection = await db.payments.aggregate(other_fees_pipeline).to_list(10)
+            outstanding_result = await db.payments.aggregate(outstanding_pipeline).to_list(1)
+            outstanding = outstanding_result[0] if outstanding_result else {"total_amount": 0, "count": 0}
 
-            # Online Fees Collection Report
-            online_fees_pipeline = [
-                {"$match": {**filter_query, "payment_method": "online"}},
-                {"$group": {
-                    "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$payment_date"}},
-                    "total": {"$sum": "$amount"},
-                    "count": {"$sum": 1}
-                }},
-                {"$sort": {"_id": -1}},
-                {"$limit": 30}
-            ]
-            online_fees_collection = await db.payments.aggregate(online_fees_pipeline).to_list(30)
-
-            # Balance Fees Report With Remark
-            balance_fees_remark_pipeline = [
-                {"$match": {**filter_query, "payment_status": "pending"}},
-                {"$lookup": {
-                    "from": "users",
-                    "localField": "student_id",
-                    "foreignField": "id",
-                    "as": "student_info"
-                }},
-                {"$unwind": "$student_info"},
-                {"$project": {
-                    "amount": 1,
-                    "due_date": 1,
-                    "notes": 1,
-                    "student_name": "$student_info.full_name",
-                    "student_email": "$student_info.email"
-                }},
-                {"$limit": 100}
-            ]
-            balance_fees_remark = await db.payments.aggregate(balance_fees_remark_pipeline).to_list(100)
+            # Calculate summary statistics
+            total_revenue = sum(item.get("total_amount", 0) for item in revenue_by_status if item["_id"] in ["paid", "completed"])
+            total_transactions = sum(item.get("count", 0) for item in revenue_by_status if item["_id"] in ["paid", "completed"])
+            pending_amount = sum(item.get("total_amount", 0) for item in revenue_by_status if item["_id"] == "pending")
+            average_transaction = total_revenue / total_transactions if total_transactions > 0 else 0
 
             return {
-                "financial_reports": {
-                    "total_balance_fees_statement": {
-                        "total_amount": total_balance["total"],
-                        "total_transactions": total_balance["count"]
-                    },
-                    "balance_fees_statement": {
-                        "pending_amount": balance_fees["total"],
-                        "pending_transactions": balance_fees["count"]
-                    },
-                    "daily_collection_report": serialize_doc(daily_collection),
-                    "type_wise_balance_report": serialize_doc(type_wise_balance),
-                    "fees_statement": serialize_doc(fees_statement),
-                    "total_fee_collection_report": serialize_doc(total_fee_collection),
-                    "other_fees_collection_report": serialize_doc(other_fees_collection),
-                    "online_fees_collection_report": serialize_doc(online_fees_collection),
-                    "balance_fees_report_with_remark": serialize_doc(balance_fees_remark)
+                "payments": serialize_doc(payments),
+                "pagination": {
+                    "total": total_count,
+                    "skip": skip,
+                    "limit": limit,
+                    "has_more": skip + len(payments) < total_count
+                },
+                "analytics": {
+                    "revenue_by_status": serialize_doc(revenue_by_status),
+                    "revenue_by_method": serialize_doc(revenue_by_method),
+                    "revenue_by_type": serialize_doc(revenue_by_type),
+                    "revenue_by_branch": serialize_doc(revenue_by_branch),
+                    "monthly_revenue": serialize_doc(monthly_revenue),
+                    "outstanding_payments": serialize_doc(outstanding)
+                },
+                "summary": {
+                    "total_revenue": total_revenue,
+                    "total_transactions": total_transactions,
+                    "pending_amount": pending_amount,
+                    "outstanding_amount": outstanding.get("total_amount", 0),
+                    "outstanding_count": outstanding.get("count", 0),
+                    "average_transaction": round(average_transaction, 2)
                 },
                 "filters_applied": {
-                    "start_date": start_date,
-                    "end_date": end_date,
                     "branch_id": branch_id,
-                    "session": session,
-                    "class": class_filter,
-                    "section": section,
-                    "fees_type": fees_type
+                    "payment_type": payment_type,
+                    "payment_method": payment_method,
+                    "payment_status": payment_status,
+                    "date_range": date_range,
+                    "amount_min": amount_min,
+                    "amount_max": amount_max,
+                    "search": search
                 },
                 "generated_at": dt.datetime.utcnow()
             }
 
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error generating financial reports: {str(e)}")
+            print(f"Error generating financial reports: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to generate financial reports: {str(e)}")
+
+    @staticmethod
+    async def get_financial_report_filters(current_user: dict):
+        """Get available filter options for financial reports"""
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
+        db = get_db()
+
+        try:
+            # Get all branches for branch filter
+            branches = await db.branches.find(
+                {},
+                {"id": 1, "branch.name": 1, "name": 1, "branch.code": 1, "code": 1}
+            ).to_list(100)
+
+            branch_options = []
+            for branch in branches:
+                name = branch.get("branch", {}).get("name") or branch.get("name", "Unknown Branch")
+                code = branch.get("branch", {}).get("code") or branch.get("code", "")
+                display_name = f"{name}" + (f" ({code})" if code else "")
+                branch_options.append({
+                    "id": branch["id"],
+                    "name": display_name
+                })
+
+            # Get unique payment types from payments collection
+            payment_types_pipeline = [
+                {"$group": {"_id": "$payment_type"}},
+                {"$match": {"_id": {"$ne": None}}},
+                {"$sort": {"_id": 1}}
+            ]
+            payment_types_result = await db.payments.aggregate(payment_types_pipeline).to_list(20)
+            payment_types = [{"id": item["_id"], "name": item["_id"].replace("_", " ").title()} for item in payment_types_result]
+
+            # Get unique payment methods from payments collection
+            payment_methods_pipeline = [
+                {"$group": {"_id": "$payment_method"}},
+                {"$match": {"_id": {"$ne": None}}},
+                {"$sort": {"_id": 1}}
+            ]
+            payment_methods_result = await db.payments.aggregate(payment_methods_pipeline).to_list(20)
+            payment_methods = [{"id": item["_id"], "name": item["_id"].replace("_", " ").title()} for item in payment_methods_result]
+
+            # Payment status options
+            payment_statuses = [
+                {"id": "paid", "name": "Paid"},
+                {"id": "pending", "name": "Pending"},
+                {"id": "completed", "name": "Completed"},
+                {"id": "overdue", "name": "Overdue"},
+                {"id": "cancelled", "name": "Cancelled"},
+                {"id": "failed", "name": "Failed"}
+            ]
+
+            # Date range options
+            date_ranges = [
+                {"id": "current-month", "name": "Current Month"},
+                {"id": "last-month", "name": "Last Month"},
+                {"id": "current-quarter", "name": "Current Quarter"},
+                {"id": "last-quarter", "name": "Last Quarter"},
+                {"id": "current-year", "name": "Current Year"},
+                {"id": "last-year", "name": "Last Year"}
+            ]
+
+            return {
+                "filters": {
+                    "branches": branch_options,
+                    "payment_types": payment_types,
+                    "payment_methods": payment_methods,
+                    "payment_statuses": payment_statuses,
+                    "date_ranges": date_ranges
+                },
+                "generated_at": dt.datetime.utcnow()
+            }
+
+        except Exception as e:
+            print(f"Error loading financial report filters: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to load financial report filters: {str(e)}")
 
     @staticmethod
     async def get_student_reports(

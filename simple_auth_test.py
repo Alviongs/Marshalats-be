@@ -8,7 +8,7 @@ import json
 def simple_auth_test():
     """Simple step-by-step bearer token testing"""
     
-    base_url = "http://localhost:8003/api"
+    base_url = "http://31.97.224.169:8003/api"
     
     print("🔐 STEP 1: LOGIN TO GET BEARER TOKEN")
     print("=" * 50)
@@ -127,7 +127,7 @@ def show_curl_examples():
     # First get token
     print(f"\n1️⃣ LOGIN TO GET TOKEN:")
     print("-" * 30)
-    print("""curl -X POST http://localhost:8003/api/auth/login \\
+    print("""curl -X POST http://31.97.224.169:8003/api/auth/login \\
   -H "Content-Type: application/json" \\
   -d '{
     "email": "superadmin@test.com",
@@ -136,13 +136,13 @@ def show_curl_examples():
     
     print(f"\n2️⃣ USE TOKEN IN PROTECTED REQUESTS:")
     print("-" * 30)
-    print("""curl -X GET http://localhost:8003/api/auth/me \\
+    print("""curl -X GET http://31.97.224.169:8003/api/auth/me \\
   -H "Authorization: Bearer YOUR_TOKEN_HERE" \\
   -H "Content-Type: application/json" """)
     
     print(f"\n3️⃣ CREATE BRANCH WITH AUTH:")
     print("-" * 30)
-    print("""curl -X POST http://localhost:8003/api/branches \\
+    print("""curl -X POST http://31.97.224.169:8003/api/branches \\
   -H "Authorization: Bearer YOUR_TOKEN_HERE" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -190,7 +190,7 @@ def show_postman_guide():
     print("""
 🔐 STEP 1: Login Request
    Method: POST
-   URL: http://localhost:8003/api/auth/login
+   URL: http://31.97.224.169:8003/api/auth/login
    Headers: Content-Type: application/json
    Body (JSON):
    {

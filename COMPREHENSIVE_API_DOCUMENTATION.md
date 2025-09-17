@@ -11,7 +11,7 @@
 
 ## Overview
 
-**Base URL**: `http://localhost:8003` (Development) | `https://edumanage-44.preview.dev.com` (Production)
+**Base URL**: `http://31.97.224.169:8003` (Development) | `https://edumanage-44.preview.dev.com` (Production)
 
 This documentation covers all implemented API endpoints including both authenticated and public endpoints for comprehensive data access.
 
@@ -64,7 +64,7 @@ No authentication required - can be accessed directly.
 
 **cURL Example**:
 ```bash
-curl -X GET "http://localhost:8003/users/students/details" \
+curl -X GET "http://31.97.224.169:8003/users/students/details" \
   -H "Authorization: Bearer <your_token>"
 ```
 
@@ -126,7 +126,7 @@ curl -X GET "http://localhost:8003/users/students/details" \
 
 **cURL Example**:
 ```bash
-curl -X GET "http://localhost:8003/categories/public/details?include_courses=true&active_only=true"
+curl -X GET "http://31.97.224.169:8003/categories/public/details?include_courses=true&active_only=true"
 ```
 
 ### 2. GET /courses/public/by-category/{category_id}
@@ -194,7 +194,7 @@ curl -X GET "http://localhost:8003/categories/public/details?include_courses=tru
 
 **cURL Example**:
 ```bash
-curl -X GET "http://localhost:8003/courses/public/by-category/category-uuid-123?difficulty_level=Advanced&include_durations=true"
+curl -X GET "http://31.97.224.169:8003/courses/public/by-category/category-uuid-123?difficulty_level=Advanced&include_durations=true"
 ```
 
 ### 3. GET /durations/public/by-course/{course_id}
@@ -247,7 +247,7 @@ curl -X GET "http://localhost:8003/courses/public/by-category/category-uuid-123?
 
 **cURL Example**:
 ```bash
-curl -X GET "http://localhost:8003/durations/public/by-course/course-uuid-456?include_pricing=true"
+curl -X GET "http://31.97.224.169:8003/durations/public/by-course/course-uuid-456?include_pricing=true"
 ```
 
 ### 4. GET /categories/public/with-courses-and-durations
@@ -318,7 +318,7 @@ curl -X GET "http://localhost:8003/durations/public/by-course/course-uuid-456?in
 
 **cURL Example**:
 ```bash
-curl -X GET "http://localhost:8003/categories/public/with-courses-and-durations?active_only=true&include_locations=true"
+curl -X GET "http://31.97.224.169:8003/categories/public/with-courses-and-durations?active_only=true&include_locations=true"
 ```
 
 ---
@@ -386,7 +386,7 @@ curl -X GET "http://localhost:8003/categories/public/with-courses-and-durations?
 
 **cURL Example**:
 ```bash
-curl -X GET "http://localhost:8003/locations/public/details?include_branches=true&include_courses=true"
+curl -X GET "http://31.97.224.169:8003/locations/public/details?include_branches=true&include_courses=true"
 ```
 
 ### 2. GET /branches/public/by-location/{location_id}
@@ -463,7 +463,7 @@ curl -X GET "http://localhost:8003/locations/public/details?include_branches=tru
 
 **cURL Example**:
 ```bash
-curl -X GET "http://localhost:8003/branches/public/by-location/location-uuid-123?include_courses=true"
+curl -X GET "http://31.97.224.169:8003/branches/public/by-location/location-uuid-123?include_courses=true"
 ```
 
 ### 3. GET /courses/public/by-location/{location_id}
@@ -533,7 +533,7 @@ curl -X GET "http://localhost:8003/branches/public/by-location/location-uuid-123
 
 **cURL Example**:
 ```bash
-curl -X GET "http://localhost:8003/courses/public/by-location/location-uuid-123?category_id=category-uuid-123&include_durations=true"
+curl -X GET "http://31.97.224.169:8003/courses/public/by-location/location-uuid-123?category_id=category-uuid-123&include_durations=true"
 ```
 
 ### 4. GET /durations/public/by-location-course
@@ -585,7 +585,7 @@ curl -X GET "http://localhost:8003/courses/public/by-location/location-uuid-123?
 
 **cURL Example**:
 ```bash
-curl -X GET "http://localhost:8003/durations/public/by-location-course?location_id=location-uuid-123&course_id=course-uuid-456&include_branches=true"
+curl -X GET "http://31.97.224.169:8003/durations/public/by-location-course?location_id=location-uuid-123&course_id=course-uuid-456&include_branches=true"
 ```
 
 ### 5. GET /categories/public/location-hierarchy
@@ -688,7 +688,7 @@ curl -X GET "http://localhost:8003/durations/public/by-location-course?location_
 
 **cURL Example**:
 ```bash
-curl -X GET "http://localhost:8003/categories/public/location-hierarchy?category_id=category-uuid-123&include_pricing=true"
+curl -X GET "http://31.97.224.169:8003/categories/public/location-hierarchy?category_id=category-uuid-123&include_pricing=true"
 ```
 
 ---
@@ -740,37 +740,37 @@ All endpoints return consistent error responses:
 #### 1. Category Selection Workflow
 ```bash
 # Step 1: Get all categories with courses and durations
-curl -X GET "http://localhost:8003/categories/public/with-courses-and-durations?active_only=true"
+curl -X GET "http://31.97.224.169:8003/categories/public/with-courses-and-durations?active_only=true"
 
 # Step 2: Get complete hierarchy for a specific category
-curl -X GET "http://localhost:8003/categories/public/location-hierarchy?category_id=category-uuid-123"
+curl -X GET "http://31.97.224.169:8003/categories/public/location-hierarchy?category_id=category-uuid-123"
 
 # Step 3: Get courses by category
-curl -X GET "http://localhost:8003/courses/public/by-category/category-uuid-123?include_durations=true"
+curl -X GET "http://31.97.224.169:8003/courses/public/by-category/category-uuid-123?include_durations=true"
 ```
 
 #### 2. Location Selection Workflow
 ```bash
 # Step 1: Get all locations with branches
-curl -X GET "http://localhost:8003/locations/public/details?include_branches=true&include_courses=true"
+curl -X GET "http://31.97.224.169:8003/locations/public/details?include_branches=true&include_courses=true"
 
 # Step 2: Get branches by location
-curl -X GET "http://localhost:8003/branches/public/by-location/location-uuid-123?include_courses=true"
+curl -X GET "http://31.97.224.169:8003/branches/public/by-location/location-uuid-123?include_courses=true"
 
 # Step 3: Get courses by location
-curl -X GET "http://localhost:8003/courses/public/by-location/location-uuid-123?include_durations=true"
+curl -X GET "http://31.97.224.169:8003/courses/public/by-location/location-uuid-123?include_durations=true"
 ```
 
 #### 3. Course Selection Workflow
 ```bash
 # Step 1: Get courses by category
-curl -X GET "http://localhost:8003/courses/public/by-category/category-uuid-123"
+curl -X GET "http://31.97.224.169:8003/courses/public/by-category/category-uuid-123"
 
 # Step 2: Get durations for specific course
-curl -X GET "http://localhost:8003/durations/public/by-course/course-uuid-456?include_pricing=true"
+curl -X GET "http://31.97.224.169:8003/durations/public/by-course/course-uuid-456?include_pricing=true"
 
 # Step 3: Get durations by location and course
-curl -X GET "http://localhost:8003/durations/public/by-location-course?location_id=location-uuid-123&course_id=course-uuid-456"
+curl -X GET "http://31.97.224.169:8003/durations/public/by-location-course?location_id=location-uuid-123&course_id=course-uuid-456"
 ```
 
 ### Postman Collection Import
@@ -784,7 +784,7 @@ curl -X GET "http://localhost:8003/durations/public/by-location-course?location_
   "variable": [
     {
       "key": "base_url",
-      "value": "http://localhost:8003"
+      "value": "http://31.97.224.169:8003"
     }
   ],
   "item": [

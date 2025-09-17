@@ -54,7 +54,7 @@ async def test_authenticated_courses():
     try:
         print("\n📡 Testing /api/courses endpoint (authenticated)...")
         headers = {"Authorization": f"Bearer {token}"}
-        response = requests.get("http://localhost:8003/api/courses", headers=headers)
+        response = requests.get("http://31.97.224.169:8003/api/courses", headers=headers)
 
         if response.status_code == 200:
             data = response.json()

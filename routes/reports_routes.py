@@ -19,19 +19,30 @@ async def get_category_reports(category_id: str):
 
 @router.get("/financial")
 async def get_financial_reports(
-    start_date: Optional[datetime] = Query(None, description="Start date for report"),
-    end_date: Optional[datetime] = Query(None, description="End date for report"),
-    branch_id: Optional[str] = Query(None, description="Filter by branch ID"),
-    session: Optional[str] = Query(None, description="Filter by session"),
-    class_filter: Optional[str] = Query(None, alias="class", description="Filter by class"),
-    section: Optional[str] = Query(None, description="Filter by section"),
-    fees_type: Optional[str] = Query(None, description="Filter by fees type"),
+    branch_id: Optional[str] = Query(None, description="Filter by specific branch ID"),
+    payment_type: Optional[str] = Query(None, description="Filter by payment type"),
+    payment_method: Optional[str] = Query(None, description="Filter by payment method"),
+    payment_status: Optional[str] = Query(None, description="Filter by payment status"),
+    date_range: Optional[str] = Query(None, description="Filter by date range"),
+    amount_min: Optional[float] = Query(None, description="Minimum amount filter"),
+    amount_max: Optional[float] = Query(None, description="Maximum amount filter"),
+    search: Optional[str] = Query(None, description="Search in transaction ID, course, branch, or notes"),
+    skip: int = Query(0, ge=0, description="Number of records to skip for pagination"),
+    limit: int = Query(50, ge=1, le=100, description="Number of records to return"),
     current_user: dict = Depends(get_current_user_or_superadmin)
 ):
-    """Get comprehensive financial reports"""
+    """Get comprehensive financial reports with enhanced filtering and search"""
     return await ReportsController.get_financial_reports(
-        current_user, start_date, end_date, branch_id, session, class_filter, section, fees_type
+        current_user, branch_id, payment_type, payment_method, payment_status,
+        date_range, amount_min, amount_max, search, skip, limit
     )
+
+@router.get("/financial/filters")
+async def get_financial_report_filters(
+    current_user: dict = Depends(get_current_user_or_superadmin)
+):
+    """Get available filter options for financial reports"""
+    return await ReportsController.get_financial_report_filters(current_user)
 
 @router.get("/students")
 async def get_student_reports(

@@ -14,7 +14,7 @@ def test_complete_workflow():
     print("🚀 COMPLETE END-TO-END WORKFLOW TEST")
     print("="*60)
     
-    backend_url = "http://localhost:8003"
+    backend_url = "http://31.97.224.169:8003"
     test_email = "pittisunilkumar3@gmail.com"
     
     # Step 1: Test forgot password request

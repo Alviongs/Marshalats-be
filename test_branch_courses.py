@@ -16,7 +16,7 @@ async def test_branch_courses():
     async with aiohttp.ClientSession() as session:
         # Login
         print("🔐 Logging in as superadmin...")
-        async with session.post("http://localhost:8003/api/superadmin/login", json=login_data) as response:
+        async with session.post("http://31.97.224.169:8003/api/superadmin/login", json=login_data) as response:
             if response.status == 200:
                 login_result = await response.json()
                 token = login_result.get("access_token") or login_result.get("token") or login_result.get("data", {}).get("token")
@@ -33,7 +33,7 @@ async def test_branch_courses():
         # Get branches first to find a branch ID
         print("\n📋 Getting branches...")
         headers = {"Authorization": f"Bearer {token}"}
-        async with session.get("http://localhost:8003/api/branches", headers=headers) as response:
+        async with session.get("http://31.97.224.169:8003/api/branches", headers=headers) as response:
             if response.status == 200:
                 branches_result = await response.json()
                 branches = branches_result.get("branches", [])
@@ -50,7 +50,7 @@ async def test_branch_courses():
         
         # Test the new endpoint
         print(f"\n🎯 Testing courses for branch: {branch_id}")
-        async with session.get(f"http://localhost:8003/api/courses/by-branch/{branch_id}", headers=headers) as response:
+        async with session.get(f"http://31.97.224.169:8003/api/courses/by-branch/{branch_id}", headers=headers) as response:
             if response.status == 200:
                 courses_result = await response.json()
                 courses = courses_result.get("courses", [])

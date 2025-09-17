@@ -6,7 +6,7 @@ Test the complete frontend-backend integration for payment flow
 import requests
 import json
 
-BACKEND_URL = "http://localhost:8003"
+BACKEND_URL = "http://31.97.224.169:8003"
 FRONTEND_URL = "http://localhost:3022"
 
 def test_payment_info_api():

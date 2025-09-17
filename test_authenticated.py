@@ -6,7 +6,7 @@ token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MGY3YzdhYy0yNTkyLTQ0N2
 headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
 
 print('=== Testing Student Details API (Authenticated) ===')
-response = requests.get('http://localhost:8003/users/students/details', headers=headers)
+response = requests.get('http://31.97.224.169:8003/users/students/details', headers=headers)
 print(f'Status: {response.status_code}')
 if response.status_code == 200:
     data = response.json()
@@ -21,7 +21,7 @@ else:
     print(f'Error: {response.text}')
 
 print('\n=== Testing Student Details API Without Auth (Should Fail) ===')
-response = requests.get('http://localhost:8003/users/students/details')
+response = requests.get('http://31.97.224.169:8003/users/students/details')
 print(f'Status: {response.status_code}')
 if response.status_code == 401:
     print('✅ Correctly requires authentication')
@@ -30,7 +30,7 @@ else:
     print(f'Response: {response.text}')
 
 print('\n=== Testing Public Endpoint Without Auth (Should Work) ===')
-response = requests.get('http://localhost:8003/categories/public/all')
+response = requests.get('http://31.97.224.169:8003/categories/public/all')
 print(f'Status: {response.status_code}')
 if response.status_code == 200:
     print('✅ Public endpoint works without authentication')
@@ -40,7 +40,7 @@ else:
     print(f'❌ Public endpoint failed: {response.text}')
 
 print('\n=== Testing Durations by Course with Real Course ID (Should Fail Gracefully) ===')
-response = requests.get('http://localhost:8003/durations/public/by-course/test-course-id')
+response = requests.get('http://31.97.224.169:8003/durations/public/by-course/test-course-id')
 print(f'Status: {response.status_code}')
 if response.status_code == 404:
     print('✅ Correctly returns 404 for non-existent course')
@@ -49,7 +49,7 @@ else:
 
 print('\n=== Testing Location-Course Duration Combination ===')
 location_id = 'a60c5165-60f4-4f65-b66c-433ebdcd9f73'  # Hyderabad
-response = requests.get(f'http://localhost:8003/durations/public/by-location-course?location_id={location_id}&course_id=test-course-id')
+response = requests.get(f'http://31.97.224.169:8003/durations/public/by-location-course?location_id={location_id}&course_id=test-course-id')
 print(f'Status: {response.status_code}')
 if response.status_code == 404:
     print('✅ Correctly handles non-existent course')
@@ -68,7 +68,7 @@ endpoints = [
 
 all_working = True
 for endpoint in endpoints:
-    response = requests.get(f'http://localhost:8003{endpoint}')
+    response = requests.get(f'http://31.97.224.169:8003{endpoint}')
     if response.status_code == 200:
         print(f'✅ {endpoint}')
     else:

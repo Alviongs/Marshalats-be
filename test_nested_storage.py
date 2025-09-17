@@ -51,7 +51,7 @@ async def check_database_storage():
 
 def test_registration_and_check_storage():
     """Test registration and verify storage"""
-    url = "http://localhost:8003/api/auth/register"
+    url = "http://31.97.224.169:8003/api/auth/register"
     
     # Create a new test user with unique email
     test_user = {

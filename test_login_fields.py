@@ -9,7 +9,7 @@ def test_login():
     """Test the /api/auth/login endpoint"""
     
     # First, register a new user with known credentials
-    register_url = "http://localhost:8003/api/auth/register"
+    register_url = "http://31.97.224.169:8003/api/auth/register"
     register_data = {
         "email": "testlogin@example.com",
         "phone": "+1555555555",
@@ -28,7 +28,7 @@ def test_login():
     
     if register_response.status_code == 200 or register_response.status_code == 400:
         # Now test login
-        login_url = "http://localhost:8003/api/auth/login"
+        login_url = "http://31.97.224.169:8003/api/auth/login"
         login_data = {
             "email": "testlogin@example.com",
             "password": "testpassword123"

@@ -7,7 +7,7 @@ import requests
 import json
 
 # API Configuration
-BASE_URL = "http://localhost:8003/api"
+BASE_URL = "http://31.97.224.169:8003/api"
 
 def test_coach_creation():
     print("🚀 Testing Coach Creation API with Nested Structure")

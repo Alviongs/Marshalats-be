@@ -12,7 +12,7 @@ from pathlib import Path
 
 class CompleteWorkflowTest:
     def __init__(self):
-        self.backend_url = "http://localhost:8003"
+        self.backend_url = "http://31.97.224.169:8003"
         self.frontend_url = "http://localhost:3022"
         self.test_email = "pittisunilkumar3@gmail.com"
         self.new_password = "NewSecurePassword123!"

@@ -7,7 +7,7 @@ import requests
 import json
 import sys
 
-BASE_URL = "http://localhost:8003"
+BASE_URL = "http://31.97.224.169:8003"
 
 def test_server_connection():
     """Test if server is running"""

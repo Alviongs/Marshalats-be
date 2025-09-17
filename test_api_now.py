@@ -13,7 +13,7 @@ def test_api():
     # Test forgot password API
     try:
         response = requests.post(
-            'http://localhost:8003/auth/forgot-password',
+            'http://31.97.224.169:8003/auth/forgot-password',
             json={'email': 'pittisunilkumar3@gmail.com'},
             timeout=15
         )

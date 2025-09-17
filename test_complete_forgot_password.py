@@ -15,7 +15,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-API_BASE_URL = "http://localhost:8003"
+API_BASE_URL = "http://31.97.224.169:8003"
 
 async def test_complete_forgot_password_flow():
     """Test the complete forgot password functionality"""
@@ -267,7 +267,7 @@ if __name__ == "__main__":
     os.environ["TESTING"] = "True"
     
     print("🚀 Starting Comprehensive Forgot Password Test")
-    print("Make sure the backend server is running on http://localhost:8003")
+    print("Make sure the backend server is running on http://31.97.224.169:8003")
     print()
     
     success = asyncio.run(test_complete_forgot_password_flow())

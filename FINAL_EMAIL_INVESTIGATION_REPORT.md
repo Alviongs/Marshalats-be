@@ -82,7 +82,7 @@ The correct email address in the database is: `pittisunilkumar@gmail.com` (witho
 
 ### ✅ **Frontend Configuration**
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8003
+NEXT_PUBLIC_API_BASE_URL=http://31.97.224.169:8003
 ```
 
 ### ✅ **Frontend Components**
@@ -157,7 +157,7 @@ SMTP_PASS=your-app-password
 
 1. **Use Correct Email**: `pittisunilkumar@gmail.com` (not pittisunilkumar3@gmail.com)
 2. **Frontend Test**: Visit `http://localhost:3022/forgot-password`
-3. **Backend Test**: API endpoint working at `http://localhost:8003/auth/forgot-password`
+3. **Backend Test**: API endpoint working at `http://31.97.224.169:8003/auth/forgot-password`
 4. **Check Spam Folder**: Most likely location for emails
 
 ### ✅ **System Status Confirmation**

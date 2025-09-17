@@ -11,7 +11,7 @@ def create_test_branch():
     # Step 1: Get locations
     print("\n📍 Getting locations...")
     try:
-        response = requests.get('http://localhost:8003/api/locations/public/details?active_only=true')
+        response = requests.get('http://31.97.224.169:8003/api/locations/public/details?active_only=true')
         if response.status_code == 200:
             data = response.json()
             locations = data.get('locations', [])
@@ -105,7 +105,7 @@ def create_test_branch():
         location_name = location['name']
         
         try:
-            response = requests.get(f'http://localhost:8003/api/branches/public/by-location/{location_id}?active_only=true')
+            response = requests.get(f'http://31.97.224.169:8003/api/branches/public/by-location/{location_id}?active_only=true')
             if response.status_code == 200:
                 data = response.json()
                 branch_count = len(data.get('branches', []))

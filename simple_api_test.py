@@ -2,7 +2,7 @@ import requests
 import json
 
 # Test configuration
-BASE_URL = 'http://localhost:8003'
+BASE_URL = 'http://31.97.224.169:8003'
 token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MGY3YzdhYy0yNTkyLTQ0N2YtYmQzNy0zYzBkYWQ1ZDMzMGMiLCJlbWFpbCI6ImFkbWluQHRlc3QuY29tIiwicm9sZSI6InN1cGVyYWRtaW4iLCJleHAiOjE3NTczMTQ5NDh9.ZnhHstNDQVNNqYqHZtKw1sVSZ9PIHSuXZFK3aDZ3hn8'
 headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
 
