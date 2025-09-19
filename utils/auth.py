@@ -20,7 +20,7 @@ load_dotenv(ROOT_DIR / '.env')
 # Security setup
 security = HTTPBearer()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-SECRET_KEY = os.environ.get('SECRET_KEY', 'student_management_secret_key_2025')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'student_management_secret_key_2025_secure')
 ALGORITHM = "HS256"
 
 # Debug: Print the SECRET_KEY being used (first 20 chars only for security)

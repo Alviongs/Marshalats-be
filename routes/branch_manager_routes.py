@@ -37,6 +37,7 @@ async def get_branch_manager_profile(
     """Get current branch manager's profile"""
     # Remove sensitive information
     manager_profile = {k: v for k, v in current_user.items() if k not in ["password_hash", "password"]}
+
     return {
         "branch_manager": manager_profile
     }

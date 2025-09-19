@@ -49,10 +49,10 @@ async def get_coaches(
     limit: int = Query(50, ge=1, le=100, description="Number of coaches to return"),
     active_only: bool = Query(True, description="Filter only active coaches"),
     area_of_expertise: Optional[str] = Query(None, description="Filter by area of expertise"),
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH, UserRole.BRANCH_MANAGER]))
 ):
     """Get coaches with filtering options"""
-    return await CoachController.get_coaches(skip, limit, active_only, area_of_expertise)
+    return await CoachController.get_coaches(skip, limit, active_only, area_of_expertise, current_user)
 
 @router.get("/{coach_id}")
 async def get_coach_by_id(
@@ -76,9 +76,9 @@ async def update_coach(
 async def deactivate_coach(
     coach_id: str,
     request: Request,
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER]))
 ):
-    """Deactivate coach (Super Admin only)"""
+    """Deactivate coach (Super Admin and Branch Manager)"""
     return await CoachController.deactivate_coach(coach_id, request, current_user)
 
 @router.get("/{coach_id}/courses")

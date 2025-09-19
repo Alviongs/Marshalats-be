@@ -139,6 +139,22 @@ class CourseController:
         db = get_db()
 
         try:
+            # Apply role-based access control
+            current_role = current_user.get("role")
+            if current_role == "branch_manager":
+                # Branch managers can only access courses from their managed branches
+                # Get the branch assignment from the branch manager's profile
+                branch_assignment = current_user.get("branch_assignment")
+                if branch_assignment and branch_assignment.get("branch_id"):
+                    managed_branch_id = branch_assignment["branch_id"]
+                    if managed_branch_id != branch_id:
+                        raise HTTPException(
+                            status_code=403,
+                            detail="You can only access courses from your managed branch"
+                        )
+                else:
+                    raise HTTPException(status_code=403, detail="No branch assigned to this manager")
+
             # First, get the branch to find assigned courses
             branch = await db.branches.find_one({"id": branch_id})
             if not branch:

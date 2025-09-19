@@ -28,7 +28,7 @@ async def get_users(
 
 @router.get("/students/details")
 async def get_student_details(
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH, UserRole.BRANCH_MANAGER]))
 ):
     """Get detailed student information with course enrollment data (Authenticated endpoint)"""
     return await UserController.get_student_details(current_user)
@@ -78,9 +78,9 @@ async def force_password_reset(
 async def delete_user(
     user_id: str,
     request: Request,
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
 ):
-    """Permanently delete user - accessible by Super Admin and Coach Admin"""
+    """Permanently delete user - accessible by Super Admin, Coach Admin, and Branch Manager"""
     return await UserController.delete_user(user_id, request, current_user)
 
 @router.patch("/{user_id}/deactivate")

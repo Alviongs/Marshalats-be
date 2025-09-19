@@ -16,7 +16,7 @@ load_dotenv(ROOT_DIR / '.env')
 
 security = HTTPBearer()
 # Use the same SECRET_KEY as the main server
-SECRET_KEY = os.environ.get('SECRET_KEY', 'student_management_secret_key_2025')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'student_management_secret_key_2025_secure')
 ALGORITHM = "HS256"
 
 # Debug: Print the SECRET_KEY being used (first 20 chars only for security)
@@ -24,7 +24,7 @@ print(f"🔑 unified_auth.py using SECRET_KEY: {SECRET_KEY[:20]}...")
 
 async def get_current_user_or_superadmin(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
-    Unified authentication that handles regular users, superadmins, and coaches
+    Unified authentication that handles regular users, superadmins, coaches, and branch managers
     """
     db = get_db()
     try:
@@ -44,7 +44,17 @@ async def get_current_user_or_superadmin(credentials: HTTPAuthorizationCredentia
             user_data = serialize_doc(user)
             user_data["role"] = "super_admin"  # Convert to UserRole format
             return user_data
-        
+
+        # Check if it's a branch manager token
+        if user_role == "branch_manager":
+            branch_manager = await db.branch_managers.find_one({"id": user_id})
+            if branch_manager is None:
+                raise HTTPException(status_code=401, detail="Branch manager not found")
+            # Convert branch manager to user-like format for role checking
+            manager_data = serialize_doc(branch_manager)
+            manager_data["role"] = "branch_manager"  # Set role for UserRole enum
+            return manager_data
+
         # Check if it's a coach token
         if user_role == "coach":
             coach = await db.coaches.find_one({"id": user_id})
@@ -67,7 +77,7 @@ async def get_current_user_or_superadmin(credentials: HTTPAuthorizationCredentia
 
 def require_role_unified(allowed_roles: List[UserRole]):
     """
-    Role checker that works with both regular users and superadmins
+    Role checker that works with regular users, superadmins, coaches, and branch managers
     """
     async def role_checker(current_user: dict = Depends(get_current_user_or_superadmin)):
         if not current_user.get("is_active", True):
@@ -75,11 +85,24 @@ def require_role_unified(allowed_roles: List[UserRole]):
 
         user_role = current_user["role"]
 
-        # Convert super_admin to SUPER_ADMIN enum for comparison
+        # Convert role strings to enum values for comparison
         if user_role == "super_admin":
             if UserRole.SUPER_ADMIN not in allowed_roles:
                 raise HTTPException(status_code=403, detail="Insufficient permissions")
+        elif user_role == "branch_manager":
+            if UserRole.BRANCH_MANAGER not in allowed_roles:
+                raise HTTPException(status_code=403, detail="Insufficient permissions")
+        elif user_role == "coach":
+            if UserRole.COACH not in allowed_roles:
+                raise HTTPException(status_code=403, detail="Insufficient permissions")
+        elif user_role == "coach_admin":
+            if UserRole.COACH_ADMIN not in allowed_roles:
+                raise HTTPException(status_code=403, detail="Insufficient permissions")
+        elif user_role == "student":
+            if UserRole.STUDENT not in allowed_roles:
+                raise HTTPException(status_code=403, detail="Insufficient permissions")
         else:
+            # Fallback for any other roles
             if user_role not in [role.value for role in allowed_roles]:
                 raise HTTPException(status_code=403, detail="Insufficient permissions")
 

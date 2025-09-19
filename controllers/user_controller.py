@@ -564,6 +564,32 @@ class UserController:
         if user.get("role") == "super_admin":
             raise HTTPException(status_code=403, detail="Cannot delete super admin users")
 
+        # If current user is a branch manager, ensure they can only delete students from their branch
+        current_role = current_user.get("role")
+        if current_role == "branch_manager":
+            branch_assignment = current_user.get("branch_assignment")
+            if not branch_assignment or not branch_assignment.get("branch_id"):
+                raise HTTPException(status_code=403, detail="No branch assigned to this manager")
+
+            # For students, check if they have any enrollments in courses from this branch
+            # or if their branch_id matches (if they have one)
+            user_branch_id = user.get("branch_id")
+            user_enrollments = user.get("enrollments", [])
+
+            # Check if student belongs to branch manager's branch
+            belongs_to_branch = False
+            if user_branch_id == branch_assignment["branch_id"]:
+                belongs_to_branch = True
+            elif user_enrollments:
+                # Check enrollments for branch match
+                for enrollment in user_enrollments:
+                    if enrollment.get("branch_id") == branch_assignment["branch_id"]:
+                        belongs_to_branch = True
+                        break
+
+            if not belongs_to_branch:
+                raise HTTPException(status_code=403, detail="You can only delete students from your assigned branch")
+
         # Delete user from database
         result = await get_db().users.delete_one({"id": user_id})
 
@@ -605,10 +631,22 @@ class UserController:
 
         # Apply branch filtering for non-super-admin users
         if current_role != UserRole.SUPER_ADMIN:
-            user_branch_id = current_user.get("branch_id")
-            if not user_branch_id:
-                raise HTTPException(status_code=403, detail="User not assigned to any branch")
-            query["branch_id"] = user_branch_id
+            if current_role == UserRole.BRANCH_MANAGER:
+                # Branch managers can see students from their managed branches
+                # Get the branch assignment from the branch manager's profile
+                branch_assignment = current_user.get("branch_assignment")
+                if branch_assignment and branch_assignment.get("branch_id"):
+                    # For branch managers, we need to find students enrolled in courses at their branch
+                    # We'll filter by enrollments later since students might not have branch_id directly
+                    managed_branch_id = branch_assignment["branch_id"]
+                else:
+                    raise HTTPException(status_code=403, detail="No branch assigned to this manager")
+            else:
+                # For other roles (coaches, etc.), use their branch_id
+                user_branch_id = current_user.get("branch_id")
+                if not user_branch_id:
+                    raise HTTPException(status_code=403, detail="User not assigned to any branch")
+                query["branch_id"] = user_branch_id
 
         # Get students
         students_cursor = db.users.find(query)
@@ -623,6 +661,15 @@ class UserController:
 
         # Enrich student data with course and enrollment information
         enriched_students = []
+
+        # For branch managers, we need to filter students based on their enrollments
+        if current_role == UserRole.BRANCH_MANAGER and 'managed_branch_id' in locals():
+            # Get all enrollments for the managed branch
+            branch_enrollments = await db.enrollments.find({"branch_id": managed_branch_id, "is_active": True}).to_list(1000)
+            branch_student_ids = list(set([enrollment["student_id"] for enrollment in branch_enrollments]))
+
+            # Filter students to only include those with enrollments in the managed branch
+            students = [student for student in students if student["id"] in branch_student_ids]
 
         for student in students:
             student_id = student["id"]
@@ -668,11 +715,13 @@ class UserController:
                     level = course.get("difficulty_level", "Beginner")
 
                     courses_info.append({
+                        "course_id": enrollment["course_id"],
                         "course_name": course.get("title", "Unknown Course"),
                         "level": level,
                         "duration": f"{duration_days} days" if duration_days else "Not specified",
                         "enrollment_date": enrollment.get("enrollment_date"),
-                        "payment_status": enrollment.get("payment_status", "pending")
+                        "payment_status": enrollment.get("payment_status", "pending"),
+                        "branch_id": enrollment.get("branch_id")
                     })
 
             # DEPRECATED: Legacy fallback for students with course data in user documents
@@ -715,13 +764,24 @@ class UserController:
 
             # Prepare student details response
             student_details = {
+                "id": student_id,
                 "student_id": student_id,
+                "full_name": student.get("full_name", f"{student.get('first_name', '')} {student.get('last_name', '')}").strip(),
                 "student_name": student.get("full_name", f"{student.get('first_name', '')} {student.get('last_name', '')}").strip(),
-                "gender": student.get("gender", "Not specified"),
-                "age": age,
-                "courses": courses_info,
+                "first_name": student.get("first_name", ""),
+                "last_name": student.get("last_name", ""),
                 "email": student.get("email"),
                 "phone": student.get("phone"),
+                "role": student.get("role", "student"),
+                "gender": student.get("gender", "Not specified"),
+                "age": age,
+                "date_of_birth": student.get("date_of_birth"),
+                "is_active": student.get("is_active", True),
+                "created_at": student.get("created_at"),
+                "branch_id": student.get("branch_id"),
+                "address": student.get("address"),
+                "courses": courses_info,
+                "enrollments": courses_info,  # For compatibility with frontend
                 "action": "view_profile"  # Default action - can be customized based on requirements
             }
 

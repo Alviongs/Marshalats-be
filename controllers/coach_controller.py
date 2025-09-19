@@ -115,16 +115,38 @@ class CoachController:
         skip: int = 0,
         limit: int = 50,
         active_only: bool = True,
-        area_of_expertise: Optional[str] = None
+        area_of_expertise: Optional[str] = None,
+        current_user: dict = None
     ):
         """Get coaches with filtering"""
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
         db = get_db()
-        
+
         filter_query = {}
         if active_only:
             filter_query["is_active"] = True
         if area_of_expertise:
             filter_query["areas_of_expertise"] = {"$in": [area_of_expertise]}
+
+        # Apply role-based filtering
+        current_role = current_user.get("role")
+        if current_role == "branch_manager":
+            # Branch managers can only see coaches in their managed branches
+            # Get the branch assignment from the branch manager's profile
+            branch_assignment = current_user.get("branch_assignment")
+            if branch_assignment and branch_assignment.get("branch_id"):
+                filter_query["branch_id"] = branch_assignment["branch_id"]
+            else:
+                # If no branch is assigned, return empty result
+                return {
+                    "coaches": [],
+                    "total_count": 0,
+                    "skip": skip,
+                    "limit": limit,
+                    "message": "No branch assigned to this manager"
+                }
         
         coaches = await db.coaches.find(filter_query).skip(skip).limit(limit).to_list(length=limit)
         
@@ -294,12 +316,28 @@ class CoachController:
     ):
         """Deactivate coach"""
         db = get_db()
-        
+
+        # First, get the coach to check if it exists and get branch info
+        coach = await db.coaches.find_one({"id": coach_id})
+        if not coach:
+            raise HTTPException(status_code=404, detail="Coach not found")
+
+        # If current user is a branch manager, ensure they can only delete coaches from their branch
+        current_role = current_admin.get("role")
+        if current_role == "branch_manager":
+            branch_assignment = current_admin.get("branch_assignment")
+            if not branch_assignment or not branch_assignment.get("branch_id"):
+                raise HTTPException(status_code=403, detail="No branch assigned to this manager")
+
+            # Check if the coach belongs to the branch manager's branch
+            if coach.get("branch_id") != branch_assignment["branch_id"]:
+                raise HTTPException(status_code=403, detail="You can only delete coaches from your assigned branch")
+
         result = await db.coaches.update_one(
             {"id": coach_id},
             {"$set": {"is_active": False, "updated_at": datetime.utcnow()}}
         )
-        
+
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Coach not found")
         
