@@ -493,3 +493,66 @@ This is an automated message. Please do not reply to this email.
             import logging
             logging.error(f"Error sending branch manager credentials email: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to send credentials email: {str(e)}")
+
+    @staticmethod
+    async def login_branch_manager(login_data: BranchManagerLogin):
+        """Authenticate branch manager and return JWT token"""
+        try:
+            db = get_db()
+
+            # Find branch manager by email
+            manager = await db.branch_managers.find_one({"email": login_data.email})
+            if not manager:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid email or password"
+                )
+
+            # Verify password
+            if not verify_password(login_data.password, manager["password_hash"]):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid email or password"
+                )
+
+            # Check if branch manager is active
+            if not manager.get("is_active", True):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Account is inactive. Please contact administrator."
+                )
+
+            # Create access token
+            access_token_expires = 60 * 24  # 24 hours in minutes
+            access_token = create_access_token(
+                data={
+                    "sub": manager["id"],
+                    "email": manager["email"],
+                    "role": "branch_manager",
+                    "branch_manager_id": manager["id"]
+                }
+            )
+
+            # Prepare branch manager data for response (without sensitive info)
+            manager_data = serialize_doc(manager)
+            if "password_hash" in manager_data:
+                del manager_data["password_hash"]
+            if "reset_token" in manager_data:
+                del manager_data["reset_token"]
+            if "reset_token_expiry" in manager_data:
+                del manager_data["reset_token_expiry"]
+
+            return {
+                "access_token": access_token,
+                "token_type": "bearer",
+                "branch_manager": manager_data,
+                "expires_in": access_token_expires * 60,  # Convert to seconds
+                "message": "Login successful"
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Internal server error during branch manager login: {str(e)}"
+            )

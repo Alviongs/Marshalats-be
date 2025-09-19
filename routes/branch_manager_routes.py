@@ -14,10 +14,7 @@ router = APIRouter()
 @router.post("/login")
 async def branch_manager_login(login_data: BranchManagerLogin):
     """Branch manager login endpoint"""
-    # TODO: Implement login functionality similar to coach login
-    # For now, return a placeholder response
-    from fastapi import HTTPException
-    raise HTTPException(status_code=501, detail="Branch manager login not yet implemented")
+    return await BranchManagerController.login_branch_manager(login_data)
 
 @router.post("/forgot-password")
 async def forgot_password(forgot_password_data: BranchManagerForgotPassword):
