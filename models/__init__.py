@@ -3,6 +3,10 @@
 # Import all models for easy access
 from .user_models import UserRole, BaseUser, UserCreate, UserLogin, ForgotPassword, ResetPassword, UserUpdate
 from .branch_models import Branch, BranchCreate, BranchUpdate
+from .branch_manager_models import (
+    BranchManager, BranchManagerCreate, BranchManagerUpdate, BranchManagerResponse,
+    BranchManagerLogin, BranchManagerLoginResponse, BranchManagerForgotPassword, BranchManagerResetPassword
+)
 from .course_models import Course, CourseCreate, CourseUpdate
 from .category_models import Category, CategoryCreate, CategoryUpdate, CategoryResponse
 from .duration_models import Duration, DurationCreate, DurationUpdate, DurationResponse

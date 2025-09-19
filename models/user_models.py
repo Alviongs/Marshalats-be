@@ -8,6 +8,7 @@ class UserRole(str, Enum):
     SUPER_ADMIN = "super_admin"
     COACH_ADMIN = "coach_admin"
     COACH = "coach"
+    BRANCH_MANAGER = "branch_manager"
     STUDENT = "student"
 
 # DEPRECATED: These classes are being phased out in favor of proper enrollment records

@@ -1,0 +1,495 @@
+from fastapi import HTTPException, Request
+from typing import Optional, List
+from datetime import datetime
+import secrets
+import uuid
+
+from models.branch_manager_models import (
+    BranchManagerCreate, BranchManagerUpdate, BranchManager, BranchManagerResponse,
+    BranchManagerLogin, BranchManagerLoginResponse, BranchAssignment
+)
+from models.user_models import UserRole
+from utils.auth import hash_password, verify_password, create_access_token, SECRET_KEY, ALGORITHM
+from utils.database import get_db
+from utils.helpers import serialize_doc, log_activity
+from utils.email_service import send_password_reset_email_webhook, send_custom_email_webhook
+import jwt
+from datetime import timedelta
+
+class BranchManagerController:
+    @staticmethod
+    async def create_branch_manager(
+        manager_data: BranchManagerCreate,
+        request: Request,
+        current_admin: dict
+    ):
+        """Create new branch manager with comprehensive nested structure"""
+        db = get_db()
+        
+        # Check if user exists
+        full_phone = f"{manager_data.contact_info.country_code}{manager_data.contact_info.phone}"
+        existing_manager = await db.branch_managers.find_one({
+            "$or": [
+                {"email": manager_data.contact_info.email}, 
+                {"phone": full_phone},
+                {"contact_info.phone": manager_data.contact_info.phone}
+            ]
+        })
+        if existing_manager:
+            raise HTTPException(status_code=400, detail="Branch manager with this email or phone already exists")
+        
+        # Generate password if not provided
+        if not manager_data.contact_info.password:
+            manager_data.contact_info.password = secrets.token_urlsafe(8)
+        
+        # Hash password
+        hashed_password = hash_password(manager_data.contact_info.password)
+        
+        # Generate full name from first and last name
+        full_name = f"{manager_data.personal_info.first_name} {manager_data.personal_info.last_name}".strip()
+        
+        # Parse and validate date of birth if provided
+        if manager_data.personal_info.date_of_birth:
+            try:
+                datetime.strptime(manager_data.personal_info.date_of_birth, "%Y-%m-%d")
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+        
+        # Get branch information if branch_id is provided
+        branch_assignment = None
+        if manager_data.branch_id:
+            branch = await db.branches.find_one({"id": manager_data.branch_id})
+            if branch:
+                branch_assignment = BranchAssignment(
+                    branch_id=manager_data.branch_id,
+                    branch_name=branch.get("branch", {}).get("name", ""),
+                    branch_location=f"{branch.get('branch', {}).get('address', {}).get('city', '')}, {branch.get('branch', {}).get('address', {}).get('state', '')}"
+                )
+        
+        # Create branch manager object
+        branch_manager = BranchManager(
+            personal_info=manager_data.personal_info,
+            contact_info=manager_data.contact_info,
+            address_info=manager_data.address_info,
+            professional_info=manager_data.professional_info,
+            branch_assignment=branch_assignment,
+            emergency_contact=manager_data.emergency_contact,
+            email=manager_data.contact_info.email,
+            phone=full_phone,
+            first_name=manager_data.personal_info.first_name,
+            last_name=manager_data.personal_info.last_name,
+            full_name=full_name,
+            password_hash=hashed_password,
+            notes=manager_data.notes
+        )
+        
+        # Convert to dict for storage (exclude password from contact_info)
+        manager_dict = branch_manager.dict()
+        # Remove password from nested contact_info for storage
+        manager_dict["contact_info"] = {
+            "email": manager_data.contact_info.email,
+            "country_code": manager_data.contact_info.country_code,
+            "phone": manager_data.contact_info.phone
+        }
+        
+        # Insert into branch_managers collection
+        result = await db.branch_managers.insert_one(manager_dict)
+        
+        # Log activity
+        await log_activity(
+            request=request,
+            action="create_branch_manager",
+            user_id=current_admin.get("id"),
+            user_name=current_admin.get("full_name", "Admin"),
+            details={
+                "branch_manager_id": branch_manager.id,
+                "branch_manager_name": full_name,
+                "branch_manager_email": manager_data.contact_info.email,
+                "branch_id": manager_data.branch_id
+            }
+        )
+        
+        return {
+            "message": "Branch manager created successfully",
+            "branch_manager": {
+                "id": branch_manager.id,
+                "full_name": full_name,
+                "email": manager_data.contact_info.email,
+                "branch_assignment": branch_assignment.dict() if branch_assignment else None
+            }
+        }
+    
+    @staticmethod
+    async def get_branch_managers(
+        skip: int = 0,
+        limit: int = 50,
+        active_only: bool = True,
+        current_user: dict = None
+    ):
+        """Get list of branch managers with pagination"""
+        db = get_db()
+        
+        # Build query filter
+        query_filter = {}
+        if active_only:
+            query_filter["is_active"] = True
+        
+        # Get total count
+        total_count = await db.branch_managers.count_documents(query_filter)
+        
+        # Get branch managers with pagination
+        cursor = db.branch_managers.find(query_filter).skip(skip).limit(limit).sort("created_at", -1)
+        managers = await cursor.to_list(length=limit)
+        
+        # Serialize and clean up response
+        serialized_managers = []
+        for manager in managers:
+            manager_data = serialize_doc(manager)
+            # Remove sensitive information
+            if "password_hash" in manager_data:
+                del manager_data["password_hash"]
+            if "contact_info" in manager_data and "password" in manager_data["contact_info"]:
+                del manager_data["contact_info"]["password"]
+            serialized_managers.append(manager_data)
+        
+        return {
+            "branch_managers": serialized_managers,
+            "total_count": total_count,
+            "skip": skip,
+            "limit": limit
+        }
+    
+    @staticmethod
+    async def get_branch_manager(
+        manager_id: str,
+        current_user: dict = None
+    ):
+        """Get specific branch manager by ID"""
+        db = get_db()
+        
+        manager = await db.branch_managers.find_one({"id": manager_id})
+        if not manager:
+            raise HTTPException(status_code=404, detail="Branch manager not found")
+        
+        # Serialize and clean up response
+        manager_data = serialize_doc(manager)
+        # Remove sensitive information
+        if "password_hash" in manager_data:
+            del manager_data["password_hash"]
+        if "contact_info" in manager_data and "password" in manager_data["contact_info"]:
+            del manager_data["contact_info"]["password"]
+        
+        return manager_data
+
+    @staticmethod
+    async def update_branch_manager(
+        manager_id: str,
+        manager_data: BranchManagerUpdate,
+        request: Request,
+        current_admin: dict
+    ):
+        """Update existing branch manager"""
+        db = get_db()
+
+        # Check if manager exists
+        existing_manager = await db.branch_managers.find_one({"id": manager_id})
+        if not existing_manager:
+            raise HTTPException(status_code=404, detail="Branch manager not found")
+
+        # Prepare update data
+        update_data = {"updated_at": datetime.utcnow()}
+
+        # Update personal info
+        if manager_data.personal_info:
+            update_data["personal_info"] = manager_data.personal_info.dict()
+            # Update computed fields
+            update_data["first_name"] = manager_data.personal_info.first_name
+            update_data["last_name"] = manager_data.personal_info.last_name
+            update_data["full_name"] = f"{manager_data.personal_info.first_name} {manager_data.personal_info.last_name}".strip()
+
+        # Update contact info
+        if manager_data.contact_info:
+            # Check for email conflicts
+            if manager_data.contact_info.email != existing_manager.get("email"):
+                email_conflict = await db.branch_managers.find_one({
+                    "email": manager_data.contact_info.email,
+                    "id": {"$ne": manager_id}
+                })
+                if email_conflict:
+                    raise HTTPException(status_code=400, detail="Email already exists for another branch manager")
+
+            update_data["contact_info"] = {
+                "email": manager_data.contact_info.email,
+                "country_code": manager_data.contact_info.country_code,
+                "phone": manager_data.contact_info.phone
+            }
+            update_data["email"] = manager_data.contact_info.email
+            update_data["phone"] = f"{manager_data.contact_info.country_code}{manager_data.contact_info.phone}"
+
+        # Update password if provided
+        if manager_data.password:
+            update_data["password_hash"] = hash_password(manager_data.password)
+
+        # Update address info
+        if manager_data.address_info:
+            update_data["address_info"] = manager_data.address_info.dict()
+
+        # Update professional info
+        if manager_data.professional_info:
+            update_data["professional_info"] = manager_data.professional_info.dict()
+
+        # Update branch assignment
+        if manager_data.branch_assignment:
+            update_data["branch_assignment"] = manager_data.branch_assignment.dict()
+
+        # Update emergency contact
+        if manager_data.emergency_contact:
+            update_data["emergency_contact"] = manager_data.emergency_contact.dict()
+
+        # Update other fields
+        if manager_data.is_active is not None:
+            update_data["is_active"] = manager_data.is_active
+
+        if manager_data.notes is not None:
+            update_data["notes"] = manager_data.notes
+
+        # Perform update
+        result = await db.branch_managers.update_one(
+            {"id": manager_id},
+            {"$set": update_data}
+        )
+
+        if result.modified_count == 0:
+            raise HTTPException(status_code=400, detail="No changes were made")
+
+        # Log activity
+        await log_activity(
+            request=request,
+            action="update_branch_manager",
+            user_id=current_admin.get("id"),
+            user_name=current_admin.get("full_name", "Admin"),
+            details={
+                "branch_manager_id": manager_id,
+                "updated_fields": list(update_data.keys())
+            }
+        )
+
+        # Return updated manager
+        updated_manager = await db.branch_managers.find_one({"id": manager_id})
+        manager_data = serialize_doc(updated_manager)
+        # Remove sensitive information
+        if "password_hash" in manager_data:
+            del manager_data["password_hash"]
+        if "contact_info" in manager_data and "password" in manager_data["contact_info"]:
+            del manager_data["contact_info"]["password"]
+
+        return {
+            "message": "Branch manager updated successfully",
+            "branch_manager": manager_data
+        }
+
+    @staticmethod
+    async def delete_branch_manager(
+        manager_id: str,
+        request: Request,
+        current_admin: dict
+    ):
+        """Delete branch manager"""
+        db = get_db()
+
+        # Check if manager exists
+        manager = await db.branch_managers.find_one({"id": manager_id})
+        if not manager:
+            raise HTTPException(status_code=404, detail="Branch manager not found")
+
+        # Delete the manager
+        result = await db.branch_managers.delete_one({"id": manager_id})
+
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=400, detail="Failed to delete branch manager")
+
+        # Log activity
+        await log_activity(
+            request=request,
+            action="delete_branch_manager",
+            user_id=current_admin.get("id"),
+            user_name=current_admin.get("full_name", "Admin"),
+            details={
+                "branch_manager_id": manager_id,
+                "branch_manager_name": manager.get("full_name", ""),
+                "branch_manager_email": manager.get("email", "")
+            }
+        )
+
+        return {"message": "Branch manager deleted successfully"}
+
+    @staticmethod
+    async def send_credentials_email(
+        manager_id: str,
+        request: Request,
+        current_admin: dict
+    ):
+        """Send login credentials to branch manager via email with secure password reset token"""
+        db = get_db()
+
+        # Get branch manager details
+        manager = await db.branch_managers.find_one({"id": manager_id})
+        if not manager:
+            raise HTTPException(status_code=404, detail="Branch manager not found")
+
+        # Get manager email
+        manager_email = manager.get("email") or manager.get("contact_info", {}).get("email")
+        if not manager_email:
+            raise HTTPException(status_code=400, detail="Branch manager email not found")
+
+        # Get manager name
+        manager_name = manager.get("full_name") or f"{manager.get('personal_info', {}).get('first_name', '')} {manager.get('personal_info', {}).get('last_name', '')}".strip()
+        if not manager_name:
+            manager_name = "Branch Manager"
+
+        # Generate secure password reset token (same as forgot password implementation)
+        reset_token = secrets.token_urlsafe(32)
+        reset_token_expiry = datetime.utcnow() + timedelta(hours=24)  # 24 hour expiry
+
+        # Store reset token in database (same as forgot password implementation)
+        await db.branch_managers.update_one(
+            {"id": manager_id},
+            {
+                "$set": {
+                    "reset_token": reset_token,
+                    "reset_token_expiry": reset_token_expiry,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+
+        # Get branch information for context
+        branch_info = ""
+        if manager.get("branch_assignment"):
+            branch_name = manager["branch_assignment"].get("branch_name", "")
+            branch_location = manager["branch_assignment"].get("branch_location", "")
+            if branch_name:
+                branch_info = f"Branch: {branch_name}"
+                if branch_location:
+                    branch_info += f" ({branch_location})"
+
+        # Prepare email content (same structure as coach credentials email)
+        subject = "Your Branch Manager Login Credentials - Marshalats Academy"
+
+        # Plain text message
+        plain_message = f"""
+Dear {manager_name},
+
+Your Branch Manager account has been created successfully at Marshalats Academy.
+
+Account Details:
+- Email: {manager_email}
+- Role: Branch Manager
+{f"- {branch_info}" if branch_info else ""}
+
+To set up your password and access your account, please click the link below:
+{request.base_url}branch-manager/reset-password?token={reset_token}
+
+This link will expire in 24 hours for security reasons.
+
+Once you've set your password, you can log in at:
+{request.base_url}branch-manager/login
+
+If you have any questions or need assistance, please contact our support team.
+
+Best regards,
+Marshalats Academy Team
+
+This is an automated message. Please do not reply to this email.
+        """.strip()
+
+        # HTML message
+        html_message = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Branch Manager Login Credentials</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to Marshalats Academy</h1>
+        <p style="color: #f0f0f0; margin: 10px 0 0 0; font-size: 16px;">Branch Manager Account Created</p>
+    </div>
+
+    <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #ddd;">
+        <p style="font-size: 16px; margin-bottom: 20px;">Dear <strong>{manager_name}</strong>,</p>
+
+        <p style="font-size: 16px; margin-bottom: 20px;">Your Branch Manager account has been created successfully at Marshalats Academy.</p>
+
+        <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 20px 0;">
+            <h3 style="color: #667eea; margin-top: 0;">Account Details:</h3>
+            <p style="margin: 5px 0;"><strong>Email:</strong> {manager_email}</p>
+            <p style="margin: 5px 0;"><strong>Role:</strong> Branch Manager</p>
+            {f"<p style='margin: 5px 0;'><strong>{branch_info}</strong></p>" if branch_info else ""}
+        </div>
+
+        <p style="font-size: 16px; margin: 20px 0;">To set up your password and access your account, please click the button below:</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{request.base_url}branch-manager/reset-password?token={reset_token}"
+               style="background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                Set Up Password
+            </a>
+        </div>
+
+        <p style="font-size: 14px; color: #666; margin: 20px 0;">This link will expire in 24 hours for security reasons.</p>
+
+        <p style="font-size: 16px; margin: 20px 0;">Once you've set your password, you can log in at:</p>
+        <p style="font-size: 16px; margin: 10px 0;"><a href="{request.base_url}branch-manager/login" style="color: #667eea;">{request.base_url}branch-manager/login</a></p>
+
+        <p style="font-size: 16px; margin: 20px 0;">If you have any questions or need assistance, please contact our support team.</p>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px; padding: 20px; color: #666; font-size: 14px;">
+        <p style="margin: 0;">Best regards,<br>Marshalats Academy Team</p>
+        <p style="margin: 10px 0 0 0;">This is an automated message. Please do not reply to this email.</p>
+    </div>
+</body>
+</html>
+        """.strip()
+
+        try:
+            # Send email using custom webhook service (same as coach credentials implementation)
+            email_sent = await send_custom_email_webhook(
+                manager_email,
+                subject,
+                html_message,
+                plain_message
+            )
+
+            # Log the credentials email attempt (same as coach implementation)
+            import logging
+            logging.info(f"Branch manager credentials email requested for {manager_email}. Email sent: {email_sent}")
+
+            # Log the activity in database
+            await log_activity(
+                request=request,
+                action="send_branch_manager_credentials",
+                user_id=current_admin.get("id"),
+                user_name=current_admin.get("full_name", "Admin"),
+                details={
+                    "branch_manager_id": manager_id,
+                    "branch_manager_name": manager_name,
+                    "branch_manager_email": manager_email,
+                    "email_sent": email_sent
+                }
+            )
+
+            if email_sent:
+                return {
+                    "message": "Login credentials sent successfully to branch manager's email",
+                    "email": manager_email
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to send credentials email")
+
+        except Exception as e:
+            import logging
+            logging.error(f"Error sending branch manager credentials email: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to send credentials email: {str(e)}")

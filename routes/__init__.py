@@ -4,6 +4,7 @@ from .auth_routes import router as auth_router
 from .user_routes import router as user_router
 from .coach_routes import router as coach_router
 from .branch_routes import router as branch_router
+from .branch_manager_routes import router as branch_manager_router
 from .course_routes import router as course_router
 from .category_routes import router as category_router
 from .duration_routes import router as duration_router
@@ -24,6 +25,7 @@ __all__ = [
     'user_router',
     'coach_router',
     'branch_router',
+    'branch_manager_router',
     'course_router',
     'category_router',
     'duration_router',
