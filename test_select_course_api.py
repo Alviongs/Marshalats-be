@@ -5,7 +5,7 @@ import json
 
 def test_categories_and_courses():
     print('Testing Categories API...')
-    categories_response = requests.get('http://31.97.224.169:8003/api/categories/public/details?active_only=true')
+    categories_response = requests.get('http://localhost:8003/api/categories/public/details?active_only=true')
     print(f'Categories Status: {categories_response.status_code}')
 
     if categories_response.status_code == 200:
@@ -19,7 +19,7 @@ def test_categories_and_courses():
                 category_name = category['name']
                 print(f'\nTesting Courses API for category: {category_name} ({category_id})')
                 
-                courses_response = requests.get(f'http://31.97.224.169:8003/api/courses/public/by-category/{category_id}?active_only=true')
+                courses_response = requests.get(f'http://localhost:8003/api/courses/public/by-category/{category_id}?active_only=true')
                 print(f'Courses Status: {courses_response.status_code}')
                 
                 if courses_response.status_code == 200:

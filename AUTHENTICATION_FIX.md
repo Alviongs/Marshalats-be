@@ -97,16 +97,16 @@ from utils.unified_auth import require_role_unified
 ### For Superadmin Users
 ```bash
 # 1. Login to get token
-curl -X POST "http://31.97.224.169:8003/api/superadmin/login" \
+curl -X POST "http://localhost:8003/api/superadmin/login" \
   -H "Content-Type: application/json" \
   -d '{"email": "admin@example.com", "password": "password"}'
 
 # 2. Use token with ANY coach endpoint
-curl -X GET "http://31.97.224.169:8003/api/coaches" \
+curl -X GET "http://localhost:8003/api/coaches" \
   -H "Authorization: Bearer YOUR_SUPERADMIN_TOKEN"
 
 # 3. Also works with superadmin-specific endpoints
-curl -X GET "http://31.97.224.169:8003/api/superadmin/coaches" \
+curl -X GET "http://localhost:8003/api/superadmin/coaches" \
   -H "Authorization: Bearer YOUR_SUPERADMIN_TOKEN"
 ```
 

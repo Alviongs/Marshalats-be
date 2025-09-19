@@ -85,7 +85,7 @@ courses = [
 created_courses = []
 for course in courses:
     try:
-        response = requests.post('http://31.97.224.169:8003/courses', json=course, headers=headers)
+        response = requests.post('http://localhost:8003/courses', json=course, headers=headers)
         print(f'Creating {course["title"]}: Status {response.status_code}')
         if response.status_code in [200, 201]:
             data = response.json()
@@ -170,7 +170,7 @@ branches = [
 created_branches = []
 for branch in branches:
     try:
-        response = requests.post('http://31.97.224.169:8003/branches', json=branch, headers=headers)
+        response = requests.post('http://localhost:8003/branches', json=branch, headers=headers)
         print(f'Creating {branch["branch"]["name"]}: Status {response.status_code}')
         if response.status_code in [200, 201]:
             data = response.json()

@@ -21,7 +21,7 @@ The complete end-to-end password reset workflow has been successfully tested and
 
 ### ✅ **2. Backend API Testing**
 
-**Backend URL**: `http://31.97.224.169:8003`
+**Backend URL**: `http://localhost:8003`
 
 | Endpoint | Method | Status | Response |
 |----------|--------|--------|----------|

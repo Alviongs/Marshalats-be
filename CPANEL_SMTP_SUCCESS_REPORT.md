@@ -173,7 +173,7 @@ SMTP_FROM=info@sveats.cyberdetox.in
 ## 🎯 Deployment Instructions
 
 ### **Current Status**
-- ✅ **Backend Server**: Running on http://31.97.224.169:8003
+- ✅ **Backend Server**: Running on http://localhost:8003
 - ✅ **Frontend**: Accessible at http://localhost:3022
 - ✅ **SMTP Configuration**: Working with cPanel credentials
 - ✅ **Database**: MongoDB connected and functional

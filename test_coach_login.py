@@ -6,7 +6,7 @@ Test script for coach login functionality
 import requests
 import json
 
-BASE_URL = "http://31.97.224.169:8003"
+BASE_URL = "http://localhost:8003"
 
 def test_coach_login():
     """Test the new coach login API"""

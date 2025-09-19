@@ -7,7 +7,7 @@ import json
 
 def test_register_endpoint():
     """Test the /api/auth/register endpoint"""
-    url = "http://31.97.224.169:8003/api/auth/register"
+    url = "http://localhost:8003/api/auth/register"
     
     # Test data for user registration
     test_user = {
@@ -37,7 +37,7 @@ def test_register_endpoint():
             print(f"⚠️  API returned status code: {response.status_code}")
             
     except requests.exceptions.ConnectionError:
-        print("❌ Could not connect to the server. Make sure it's running on http://31.97.224.169:8003")
+        print("❌ Could not connect to the server. Make sure it's running on http://localhost:8003")
     except requests.exceptions.Timeout:
         print("❌ Request timed out")
     except Exception as e:

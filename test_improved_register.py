@@ -7,7 +7,7 @@ import json
 
 def test_improved_register():
     """Test the improved /api/auth/register endpoint"""
-    url = "http://31.97.224.169:8003/api/auth/register"
+    url = "http://localhost:8003/api/auth/register"
     
     # Test data for user registration with new structure
     test_user = {
@@ -53,7 +53,7 @@ def test_improved_register():
             print(f"\n{'='*50}")
             print("Testing login with new user...")
             
-            login_response = requests.post("http://31.97.224.169:8003/api/auth/login", json=login_data)
+            login_response = requests.post("http://localhost:8003/api/auth/login", json=login_data)
             print(f"Login Status: {login_response.status_code}")
             
             if login_response.status_code == 200:
@@ -89,7 +89,7 @@ def test_improved_register():
             print(f"⚠️  Registration failed with status code: {response.status_code}")
             
     except requests.exceptions.ConnectionError:
-        print("❌ Could not connect to the server. Make sure it's running on http://31.97.224.169:8003")
+        print("❌ Could not connect to the server. Make sure it's running on http://localhost:8003")
     except requests.exceptions.Timeout:
         print("❌ Request timed out")
     except Exception as e:

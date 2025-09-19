@@ -22,7 +22,7 @@ load_dotenv(ROOT_DIR / '.env')
 class ComprehensiveEmailSolution:
     def __init__(self):
         self.test_email = "pittisunilkumar3@gmail.com"
-        self.backend_url = "http://31.97.224.169:8003"
+        self.backend_url = "http://localhost:8003"
         
         # Primary SMTP configuration (cPanel)
         self.primary_smtp = {
@@ -232,7 +232,7 @@ SMTP test completed successfully!
                 
         except requests.exceptions.ConnectionError:
             print("❌ Cannot connect to backend server")
-            print("   Make sure the backend is running on http://31.97.224.169:8003")
+            print("   Make sure the backend is running on http://localhost:8003")
             return False
         except Exception as e:
             print(f"❌ API test failed: {e}")

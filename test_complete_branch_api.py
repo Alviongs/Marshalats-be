@@ -10,7 +10,7 @@ import os
 
 def create_super_admin():
     """Create a super admin user for testing"""
-    register_url = "http://31.97.224.169:8003/api/auth/register"
+    register_url = "http://localhost:8003/api/auth/register"
     
     super_admin_data = {
         "email": "superadmin@test.com",
@@ -48,7 +48,7 @@ def test_comprehensive_branch_api():
         return
     
     # Login as super admin
-    login_url = "http://31.97.224.169:8003/api/auth/login"
+    login_url = "http://localhost:8003/api/auth/login"
     login_data = {
         "email": "superadmin@test.com",
         "password": "SuperAdmin123!"
@@ -106,7 +106,7 @@ def test_comprehensive_branch_api():
         print(f"✅ Super admin login successful! Role: {user_role}")
         
         # Test branch creation
-        branch_url = "http://31.97.224.169:8003/api/branches"
+        branch_url = "http://localhost:8003/api/branches"
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
@@ -175,7 +175,7 @@ def test_comprehensive_branch_api():
             print(f"Response: {response.text}")
             
     except requests.exceptions.ConnectionError:
-        print("❌ Could not connect to the server. Make sure it's running on http://31.97.224.169:8003")
+        print("❌ Could not connect to the server. Make sure it's running on http://localhost:8003")
     except requests.exceptions.Timeout:
         print("❌ Request timed out")
     except Exception as e:

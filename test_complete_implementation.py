@@ -16,7 +16,7 @@ def test_complete_implementation():
     # Test locations API
     print("\n📍 Testing Locations API:")
     try:
-        response = requests.get('http://31.97.224.169:8003/api/locations/public/details?active_only=true')
+        response = requests.get('http://localhost:8003/api/locations/public/details?active_only=true')
         if response.status_code == 200:
             data = response.json()
             locations = data.get('locations', [])
@@ -33,7 +33,7 @@ def test_complete_implementation():
     # Test branches API
     print("\n🏢 Testing Branches API:")
     try:
-        response = requests.get('http://31.97.224.169:8003/api/branches/public/all?active_only=true')
+        response = requests.get('http://localhost:8003/api/branches/public/all?active_only=true')
         if response.status_code == 200:
             data = response.json()
             branches = data.get('branches', [])
@@ -56,7 +56,7 @@ def test_complete_implementation():
         location_name = location['name']
         
         try:
-            response = requests.get(f'http://31.97.224.169:8003/api/branches/public/by-location/{location_id}?active_only=true')
+            response = requests.get(f'http://localhost:8003/api/branches/public/by-location/{location_id}?active_only=true')
             if response.status_code == 200:
                 data = response.json()
                 branch_count = len(data.get('branches', []))

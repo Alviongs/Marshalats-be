@@ -7,7 +7,7 @@ import requests
 import json
 import time
 
-BASE_URL = "http://31.97.224.169:8003"
+BASE_URL = "http://localhost:8003"
 
 def test_all_coach_endpoints():
     """Test all coach endpoints with superadmin authentication"""

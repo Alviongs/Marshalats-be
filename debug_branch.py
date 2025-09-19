@@ -16,7 +16,7 @@ async def debug_branch():
     async with aiohttp.ClientSession() as session:
         # Login
         print("🔐 Logging in as superadmin...")
-        async with session.post("http://31.97.224.169:8003/api/superadmin/login", json=login_data) as response:
+        async with session.post("http://localhost:8003/api/superadmin/login", json=login_data) as response:
             if response.status == 200:
                 login_result = await response.json()
                 token = login_result.get("access_token") or login_result.get("token") or login_result.get("data", {}).get("token")
@@ -34,7 +34,7 @@ async def debug_branch():
         branch_id = "98ba0e20-3cce-48fa-8897-f17a8a5213fc"
         print(f"\n📋 Getting branch details for: {branch_id}")
         headers = {"Authorization": f"Bearer {token}"}
-        async with session.get(f"http://31.97.224.169:8003/api/branches/{branch_id}", headers=headers) as response:
+        async with session.get(f"http://localhost:8003/api/branches/{branch_id}", headers=headers) as response:
             if response.status == 200:
                 branch_result = await response.json()
                 print(f"✅ Branch found!")

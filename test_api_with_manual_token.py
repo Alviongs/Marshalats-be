@@ -13,7 +13,7 @@ load_dotenv()
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'student_management_secret_key_2025')
 ALGORITHM = "HS256"
-BASE_URL = "http://31.97.224.169:8003"
+BASE_URL = "http://localhost:8003"
 
 def create_test_token():
     """Create a test JWT token for the known coach"""

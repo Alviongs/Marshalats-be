@@ -12,7 +12,7 @@ def test_comprehensive_branch_creation():
     """Test the new comprehensive branch create API"""
     
     # First, let's test login to get a token (assuming we have a super admin user)
-    login_url = "http://31.97.224.169:8003/api/auth/login"
+    login_url = "http://localhost:8003/api/auth/login"
     
     # You'll need to create a super admin user first or use existing credentials
     login_data = {
@@ -70,7 +70,7 @@ def test_comprehensive_branch_creation():
         print("✅ Login successful!")
         
         # Test branch creation
-        branch_url = "http://31.97.224.169:8003/api/branches"
+        branch_url = "http://localhost:8003/api/branches"
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
@@ -123,7 +123,7 @@ def test_comprehensive_branch_creation():
             print(f"Error details: {response.text}")
             
     except requests.exceptions.ConnectionError:
-        print("❌ Could not connect to the server. Make sure it's running on http://31.97.224.169:8003")
+        print("❌ Could not connect to the server. Make sure it's running on http://localhost:8003")
     except requests.exceptions.Timeout:
         print("❌ Request timed out")
     except Exception as e:

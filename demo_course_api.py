@@ -8,7 +8,7 @@ def test_course_api():
     
     # Login
     print("🔐 Logging in...")
-    login_response = requests.post("http://31.97.224.169:8003/api/auth/login", json={
+    login_response = requests.post("http://localhost:8003/api/auth/login", json={
         "email": "superadmin@test.com", 
         "password": "SuperAdmin123!"
     })
@@ -62,7 +62,7 @@ def test_course_api():
         }
     }
     
-    create_response = requests.post("http://31.97.224.169:8003/api/courses", json=course_payload, headers=headers)
+    create_response = requests.post("http://localhost:8003/api/courses", json=course_payload, headers=headers)
     
     if create_response.status_code == 200:
         course_id = create_response.json()["course_id"]
@@ -70,7 +70,7 @@ def test_course_api():
         
         # Test 2: Retrieve the course to verify nested structure
         print("\n📖 Retrieving course to verify nested structure...")
-        get_response = requests.get(f"http://31.97.224.169:8003/api/courses/{course_id}", headers=headers)
+        get_response = requests.get(f"http://localhost:8003/api/courses/{course_id}", headers=headers)
         
         if get_response.status_code == 200:
             course = get_response.json()
@@ -86,7 +86,7 @@ def test_course_api():
             
         # Test 3: Get all courses
         print("\n📋 Getting all courses...")
-        all_courses_response = requests.get("http://31.97.224.169:8003/api/courses", headers=headers)
+        all_courses_response = requests.get("http://localhost:8003/api/courses", headers=headers)
         
         if all_courses_response.status_code == 200:
             courses = all_courses_response.json()["courses"]

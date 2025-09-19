@@ -5,7 +5,7 @@
 **Date**: 2025-01-09  
 **Test Email**: pittisunilkumar3@gmail.com  
 **SMTP Server**: sveats.cyberdetox.in  
-**Backend URL**: http://31.97.224.169:8003  
+**Backend URL**: http://localhost:8003  
 **Frontend URL**: http://localhost:3022  
 
 ## ✅ Successfully Implemented Features

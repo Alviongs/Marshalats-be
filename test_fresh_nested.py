@@ -22,7 +22,7 @@ async def cleanup_and_test():
     client.close()
     
     # Now register a fresh user
-    url = "http://31.97.224.169:8003/api/auth/register"
+    url = "http://localhost:8003/api/auth/register"
     
     test_user = {
         "email": "fresh.test@example.com",

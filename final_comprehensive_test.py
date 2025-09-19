@@ -18,7 +18,7 @@ def final_comprehensive_test():
     # Test locations
     print('\n📍 Testing Locations API:')
     try:
-        response = requests.get('http://31.97.224.169:8003/api/locations/public/details?active_only=true')
+        response = requests.get('http://localhost:8003/api/locations/public/details?active_only=true')
         if response.status_code == 200:
             data = response.json()
             locations = data.get('locations', [])
@@ -35,7 +35,7 @@ def final_comprehensive_test():
     # Test all branches
     print('\n🏢 Testing All Branches API:')
     try:
-        response = requests.get('http://31.97.224.169:8003/api/branches/public/all?active_only=true')
+        response = requests.get('http://localhost:8003/api/branches/public/all?active_only=true')
         if response.status_code == 200:
             data = response.json()
             branches = data.get('branches', [])
@@ -59,7 +59,7 @@ def final_comprehensive_test():
         location_name = location['name']
         
         try:
-            response = requests.get(f'http://31.97.224.169:8003/api/branches/public/by-location/{location_id}?active_only=true')
+            response = requests.get(f'http://localhost:8003/api/branches/public/by-location/{location_id}?active_only=true')
             if response.status_code == 200:
                 data = response.json()
                 filtered_branches = data.get('branches', [])
@@ -135,7 +135,7 @@ def final_comprehensive_test():
         print(f'\\n🧪 Testing with location: {location_name}')
         
         # This is the exact URL the frontend calls
-        frontend_api_url = f'http://31.97.224.169:8003/api/branches/public/by-location/{location_id}?active_only=true'
+        frontend_api_url = f'http://localhost:8003/api/branches/public/by-location/{location_id}?active_only=true'
         
         try:
             response = requests.get(frontend_api_url)

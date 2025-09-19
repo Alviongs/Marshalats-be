@@ -12,7 +12,7 @@ def comprehensive_investigation():
     # Test 1: Check if backend server is running
     print('\n1. Backend Server Status:')
     try:
-        response = requests.get('http://31.97.224.169:8003/')
+        response = requests.get('http://localhost:8003/')
         print(f'✅ Backend server running - Status: {response.status_code}')
     except Exception as e:
         print(f'❌ Backend server not accessible: {e}')
@@ -22,7 +22,7 @@ def comprehensive_investigation():
     print('\n2. Locations API Test:')
     locations = []
     try:
-        response = requests.get('http://31.97.224.169:8003/api/locations/public/details?active_only=true')
+        response = requests.get('http://localhost:8003/api/locations/public/details?active_only=true')
         print(f'Status: {response.status_code}')
         if response.status_code == 200:
             data = response.json()
@@ -44,7 +44,7 @@ def comprehensive_investigation():
     print('\n3. All Branches API Test:')
     branches = []
     try:
-        response = requests.get('http://31.97.224.169:8003/api/branches/public/all?active_only=true')
+        response = requests.get('http://localhost:8003/api/branches/public/all?active_only=true')
         print(f'Status: {response.status_code}')
         if response.status_code == 200:
             data = response.json()
@@ -75,7 +75,7 @@ def comprehensive_investigation():
         print(f'\nTesting location: {location_name}')
         
         try:
-            response = requests.get(f'http://31.97.224.169:8003/api/branches/public/by-location/{location_id}?active_only=true')
+            response = requests.get(f'http://localhost:8003/api/branches/public/by-location/{location_id}?active_only=true')
             print(f'  Status: {response.status_code}')
             if response.status_code == 200:
                 data = response.json()
@@ -101,7 +101,7 @@ def comprehensive_investigation():
     
     for endpoint in endpoints_to_test:
         try:
-            response = requests.get(f'http://31.97.224.169:8003{endpoint}')
+            response = requests.get(f'http://localhost:8003{endpoint}')
             print(f'  {endpoint}: Status {response.status_code}')
         except Exception as e:
             print(f'  {endpoint}: Error {e}')

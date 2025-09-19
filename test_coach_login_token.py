@@ -16,7 +16,7 @@ ALGORITHM = "HS256"
 
 print(f"🔑 Using SECRET_KEY: {SECRET_KEY}")
 print(f"🔧 Using ALGORITHM: {ALGORITHM}")
-BASE_URL = "http://31.97.224.169:8003"
+BASE_URL = "http://localhost:8003"
 
 def test_coach_login():
     """Test coach login and validate the returned JWT token"""

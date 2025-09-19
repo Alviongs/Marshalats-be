@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 # Configuration
-BASE_URL = "http://31.97.224.169:8003"
+BASE_URL = "http://localhost:8003"
 TOKEN_FILE = Path(__file__).parent / "admin_token.txt"
 
 def get_admin_token():

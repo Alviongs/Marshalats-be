@@ -3,7 +3,7 @@
 import requests
 import json
 
-BASE_URL = "http://31.97.224.169:8003/api"
+BASE_URL = "http://localhost:8003/api"
 
 def demonstrate_dual_auth_systems():
     """Demonstrate both Super Admin and Regular User authentication systems"""

@@ -20,7 +20,7 @@ def test_frontend_backend_integration():
         print(f'Frontend → Locations API: Status {response.status_code}')
         if response.status_code != 200:
             # Try direct backend call
-            response = requests.get('http://31.97.224.169:8003/api/locations/public/details?active_only=true')
+            response = requests.get('http://localhost:8003/api/locations/public/details?active_only=true')
             print(f'Direct → Locations API: Status {response.status_code}')
             if response.status_code == 200:
                 data = response.json()
@@ -40,7 +40,7 @@ def test_frontend_backend_integration():
         print(f'Frontend → Branches API: Status {response.status_code}')
         if response.status_code != 200:
             # Try direct backend call
-            response = requests.get(f'http://31.97.224.169:8003/api/branches/public/by-location/{location_id}?active_only=true')
+            response = requests.get(f'http://localhost:8003/api/branches/public/by-location/{location_id}?active_only=true')
             print(f'Direct → Branches API: Status {response.status_code}')
             if response.status_code == 200:
                 data = response.json()
@@ -53,7 +53,7 @@ def test_frontend_backend_integration():
 
     print('\n2. Testing All Branches API:')
     try:
-        response = requests.get('http://31.97.224.169:8003/api/branches/public/all?active_only=true')
+        response = requests.get('http://localhost:8003/api/branches/public/all?active_only=true')
         print(f'Status: {response.status_code}')
         if response.status_code == 200:
             data = response.json()

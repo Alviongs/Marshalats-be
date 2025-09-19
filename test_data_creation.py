@@ -29,7 +29,7 @@ categories = [
 created_categories = []
 for category in categories:
     try:
-        response = requests.post('http://31.97.224.169:8003/categories', json=category, headers=headers)
+        response = requests.post('http://localhost:8003/categories', json=category, headers=headers)
         print(f'Creating {category["name"]}: Status {response.status_code}')
         if response.status_code in [200, 201]:
             data = response.json()
@@ -80,7 +80,7 @@ durations = [
 created_durations = []
 for duration in durations:
     try:
-        response = requests.post('http://31.97.224.169:8003/durations', json=duration, headers=headers)
+        response = requests.post('http://localhost:8003/durations', json=duration, headers=headers)
         print(f'Creating {duration["name"]}: Status {response.status_code}')
         if response.status_code in [200, 201]:
             data = response.json()
@@ -121,7 +121,7 @@ locations = [
 created_locations = []
 for location in locations:
     try:
-        response = requests.post('http://31.97.224.169:8003/locations', json=location, headers=headers)
+        response = requests.post('http://localhost:8003/locations', json=location, headers=headers)
         print(f'Creating {location["name"]}: Status {response.status_code}')
         if response.status_code in [200, 201]:
             data = response.json()

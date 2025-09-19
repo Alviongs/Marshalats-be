@@ -14,7 +14,7 @@ def test_correct_email():
     correct_email = 'pittisunilkumar@gmail.com'
 
     response = requests.post(
-        'http://31.97.224.169:8003/auth/forgot-password',
+        'http://localhost:8003/auth/forgot-password',
         json={'email': correct_email},
         timeout=15
     )

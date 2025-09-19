@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 class APITester:
-    def __init__(self, base_url: str = "http://31.97.224.169:8003"):
+    def __init__(self, base_url: str = "http://localhost:8003"):
         self.base_url = base_url
         self.tokens = {}
         self.test_data = {}

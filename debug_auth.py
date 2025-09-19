@@ -6,7 +6,7 @@ Debug script to test authentication with exact token
 import requests
 import json
 
-BASE_URL = "http://31.97.224.169:8003"
+BASE_URL = "http://localhost:8003"
 
 def debug_auth_issue():
     """Debug the 401 issue step by step"""

@@ -5,7 +5,7 @@ The User Management API provides comprehensive functionality for managing users 
 
 ## Base URL
 ```
-Development: http://31.97.224.169:8003/api/users
+Development: http://localhost:8003/api/users
 Production: https://edumanage-44.preview.dev.com/api/users
 ```
 
@@ -334,7 +334,7 @@ Deactivate a user (soft delete).
 
 ### Create a Student User (Coach Admin)
 ```bash
-curl -X POST "http://31.97.224.169:8003/api/users" \
+curl -X POST "http://localhost:8003/api/users" \
   -H "Authorization: Bearer <coach_admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -349,13 +349,13 @@ curl -X POST "http://31.97.224.169:8003/api/users" \
 
 ### Get All Students in Branch (Coach)
 ```bash
-curl -X GET "http://31.97.224.169:8003/api/users?role=student&branch_id=branch-123" \
+curl -X GET "http://localhost:8003/api/users?role=student&branch_id=branch-123" \
   -H "Authorization: Bearer <coach_token>"
 ```
 
 ### Update User Information (Super Admin)
 ```bash
-curl -X PUT "http://31.97.224.169:8003/api/users/user-uuid-here" \
+curl -X PUT "http://localhost:8003/api/users/user-uuid-here" \
   -H "Authorization: Bearer <super_admin_token>" \
   -H "Content-Type: application/json" \
   -d '{

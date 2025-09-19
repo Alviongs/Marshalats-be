@@ -13,7 +13,7 @@ def simple_test():
             "password": "TestSuperAdmin123!"
         }
         
-        login_response = requests.post("http://31.97.224.169:8003/api/superadmin/login", json=login_data)
+        login_response = requests.post("http://localhost:8003/api/superadmin/login", json=login_data)
         print(f"Login response: {login_response.status_code}")
         
         if login_response.status_code == 200:
@@ -22,7 +22,7 @@ def simple_test():
             
             # Test user list
             headers = {"Authorization": f"Bearer {token}"}
-            user_response = requests.get("http://31.97.224.169:8003/api/users", headers=headers)
+            user_response = requests.get("http://localhost:8003/api/users", headers=headers)
             
             print(f"User list response: {user_response.status_code}")
             if user_response.status_code == 200:

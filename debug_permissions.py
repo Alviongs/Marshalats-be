@@ -6,7 +6,7 @@ Debug script to check what token you're using and suggest the fix
 import requests
 import json
 
-BASE_URL = "http://31.97.224.169:8003"
+BASE_URL = "http://localhost:8003"
 
 def debug_permissions():
     """Debug the permissions issue"""

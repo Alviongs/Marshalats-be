@@ -12,7 +12,7 @@ def test_states_feature():
     # Test 1: States API endpoint
     print("\n1. Testing States API Endpoint...")
     try:
-        response = requests.get('http://31.97.224.169:8003/api/locations/public/states?active_only=true')
+        response = requests.get('http://localhost:8003/api/locations/public/states?active_only=true')
         print(f"   Status: {response.status_code}")
         
         if response.status_code == 200:
@@ -66,7 +66,7 @@ def test_states_feature():
     print("\n4. Testing API with different parameters...")
     try:
         # Test with active_only=false
-        response = requests.get('http://31.97.224.169:8003/api/locations/public/states?active_only=false')
+        response = requests.get('http://localhost:8003/api/locations/public/states?active_only=false')
         if response.status_code == 200:
             inactive_data = response.json()
             print(f"   ✅ API works with active_only=false: {len(inactive_data['states'])} states")
