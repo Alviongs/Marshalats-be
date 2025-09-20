@@ -113,3 +113,8 @@ class BranchManagerForgotPassword(BaseModel):
 class BranchManagerResetPassword(BaseModel):
     token: str
     new_password: str
+
+class BranchManagerProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None

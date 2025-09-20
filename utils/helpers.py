@@ -25,8 +25,8 @@ def serialize_doc(doc):
                 # Convert date objects to ISO format string for BSON compatibility
                 result[key] = value.isoformat()
             elif isinstance(value, datetime):
-                # Keep datetime objects as-is (BSON can handle them)
-                result[key] = value
+                # Convert datetime objects to ISO format string for JSON serialization
+                result[key] = value.isoformat()
             elif isinstance(value, dict):
                 result[key] = serialize_doc(value)
             elif isinstance(value, list):
@@ -38,8 +38,8 @@ def serialize_doc(doc):
         # Convert standalone date objects to ISO format string
         return doc.isoformat()
     elif isinstance(doc, datetime):
-        # Keep datetime objects as-is
-        return doc
+        # Convert datetime objects to ISO format string for JSON serialization
+        return doc.isoformat()
     return doc
 
 async def log_activity(

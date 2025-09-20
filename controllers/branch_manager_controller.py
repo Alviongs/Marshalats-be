@@ -274,18 +274,13 @@ class BranchManagerController:
             }
         )
 
-        # Return updated manager
-        updated_manager = await db.branch_managers.find_one({"id": manager_id})
-        manager_data = serialize_doc(updated_manager)
-        # Remove sensitive information
-        if "password_hash" in manager_data:
-            del manager_data["password_hash"]
-        if "contact_info" in manager_data and "password" in manager_data["contact_info"]:
-            del manager_data["contact_info"]["password"]
-
+        # Return success message without fetching updated data to avoid ObjectId issues
         return {
             "message": "Branch manager updated successfully",
-            "branch_manager": manager_data
+            "branch_manager": {
+                "id": manager_id,
+                "message": "Profile updated successfully"
+            }
         }
 
     @staticmethod
@@ -556,3 +551,74 @@ This is an automated message. Please do not reply to this email.
                 status_code=500,
                 detail=f"Internal server error during branch manager login: {str(e)}"
             )
+
+    @staticmethod
+    async def update_branch_manager_profile(manager_id: str, profile_data):
+        """Update branch manager profile with simple fields"""
+        try:
+            print(f"DEBUG: Controller method called with manager_id: {manager_id}")
+            print(f"DEBUG: Profile data: {profile_data}")
+
+            from models.branch_manager_models import BranchManagerProfileUpdate
+
+            db = get_db()
+
+            # Check if manager exists
+            existing_manager = await db.branch_managers.find_one({"id": manager_id})
+            if not existing_manager:
+                raise HTTPException(status_code=404, detail="Branch manager not found")
+
+            print(f"DEBUG: Found existing manager: {existing_manager.get('full_name', 'Unknown')}")
+
+            # Prepare simple update data - avoid nested updates for now
+            update_data = {}
+
+            if profile_data.full_name:
+                update_data["full_name"] = profile_data.full_name
+
+            if profile_data.email:
+                # Check for email conflicts
+                email_conflict = await db.branch_managers.find_one({
+                    "email": profile_data.email,
+                    "id": {"$ne": manager_id}
+                })
+                if email_conflict:
+                    raise HTTPException(status_code=400, detail="Email already exists for another branch manager")
+
+                update_data["email"] = profile_data.email
+
+            if profile_data.phone:
+                update_data["phone"] = profile_data.phone
+
+            # Add timestamp
+            update_data["updated_at"] = datetime.utcnow()
+
+            print(f"DEBUG: Update data prepared: {update_data}")
+
+            # Perform update
+            result = await db.branch_managers.update_one(
+                {"id": manager_id},
+                {"$set": update_data}
+            )
+
+            print(f"DEBUG: Update result - matched: {result.matched_count}, modified: {result.modified_count}")
+
+            if result.matched_count == 0:
+                raise HTTPException(status_code=404, detail="Branch manager not found")
+
+            # Return simple success response to avoid serialization issues
+            return {
+                "status": "success",
+                "message": "Profile updated successfully",
+                "data": {
+                    "id": manager_id,
+                    "full_name": profile_data.full_name,
+                    "email": profile_data.email,
+                    "phone": profile_data.phone
+                }
+            }
+
+        except Exception as e:
+            print(f"DEBUG: Exception in controller: {str(e)}")
+            print(f"DEBUG: Exception type: {type(e)}")
+            raise
