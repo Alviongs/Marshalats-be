@@ -39,7 +39,7 @@ async def get_course(
 async def update_course(
     course_id: str,
     course_update: CourseUpdate,
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
 ):
     return await CourseController.update_course(course_id, course_update, current_user)
 

@@ -261,6 +261,28 @@ class CourseController:
             if existing_course.get("instructor_id") != current_user["id"]:
                 raise HTTPException(status_code=403, detail="You can only update courses where you are the instructor.")
 
+        # Branch Manager permission check
+        elif current_user["role"] == UserRole.BRANCH_MANAGER:
+            # Check if this course is assigned to any branch managed by this branch manager
+            manager_id = current_user["id"]
+
+            # Find branches managed by this branch manager
+            managed_branches = await db.branches.find({"manager_id": manager_id, "is_active": True}).to_list(length=None)
+
+            if not managed_branches:
+                raise HTTPException(status_code=403, detail="You don't manage any branches.")
+
+            # Check if the course is assigned to any of the managed branches
+            course_assigned_to_managed_branch = False
+            for branch in managed_branches:
+                assigned_courses = branch.get("assignments", {}).get("courses", [])
+                if course_id in assigned_courses:
+                    course_assigned_to_managed_branch = True
+                    break
+
+            if not course_assigned_to_managed_branch:
+                raise HTTPException(status_code=403, detail="You can only update courses assigned to branches you manage.")
+
         update_data = {k: v for k, v in course_update.dict(exclude_unset=True).items()}
         if not update_data:
             raise HTTPException(status_code=400, detail="No update data provided")
