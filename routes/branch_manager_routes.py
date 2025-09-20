@@ -42,6 +42,15 @@ async def get_branch_manager_profile(
         "branch_manager": manager_profile
     }
 
+@router.put("/me")
+async def update_branch_manager_profile(
+    manager_data: BranchManagerUpdate,
+    request: Request,
+    current_user: dict = Depends(require_role_unified([UserRole.BRANCH_MANAGER]))
+):
+    """Update current branch manager's own profile"""
+    return await BranchManagerController.update_branch_manager(current_user["id"], manager_data, request, current_user)
+
 @router.post("")
 async def create_branch_manager(
     manager_data: BranchManagerCreate,
