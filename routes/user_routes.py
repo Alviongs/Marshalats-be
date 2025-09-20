@@ -36,7 +36,7 @@ async def get_student_details(
 @router.get("/{user_id}/enrollments")
 async def get_user_enrollments(
     user_id: str,
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH, UserRole.BRANCH_MANAGER]))
 ):
     """Get enrollment history for a specific student"""
     return await UserController.get_user_enrollments(user_id, current_user)
@@ -44,7 +44,7 @@ async def get_user_enrollments(
 @router.get("/{user_id}/payments")
 async def get_user_payments(
     user_id: str,
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH, UserRole.BRANCH_MANAGER]))
 ):
     """Get payment history for a specific student"""
     return await UserController.get_user_payments(user_id, current_user)
@@ -52,9 +52,9 @@ async def get_user_payments(
 @router.get("/{user_id}")
 async def get_user_by_id(
     user_id: str = Path(..., description="User ID"),
-    current_user: dict = Depends(get_current_user_or_superadmin)
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH, UserRole.BRANCH_MANAGER]))
 ):
-    """Get single user by ID - accessible by Super Admin, Coach Admin, and Coach"""
+    """Get single user by ID - accessible by Super Admin, Coach Admin, Coach, and Branch Manager"""
     return await UserController.get_user(user_id, current_user)
 
 @router.put("/{user_id}")
@@ -62,7 +62,7 @@ async def update_user(
     user_id: str,
     user_update: UserUpdate,
     request: Request,
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
 ):
     return await UserController.update_user(user_id, user_update, request, current_user)
 

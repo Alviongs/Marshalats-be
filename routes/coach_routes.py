@@ -57,10 +57,10 @@ async def get_coaches(
 @router.get("/{coach_id}")
 async def get_coach_by_id(
     coach_id: str,
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH, UserRole.BRANCH_MANAGER]))
 ):
-    """Get coach by ID"""
-    return await CoachController.get_coach_by_id(coach_id)
+    """Get coach by ID - accessible by Super Admin, Coach Admin, Coach, and Branch Manager"""
+    return await CoachController.get_coach_by_id(coach_id, current_user)
 
 @router.put("/{coach_id}")
 async def update_coach(
@@ -84,7 +84,7 @@ async def deactivate_coach(
 @router.get("/{coach_id}/courses")
 async def get_coach_courses(
     coach_id: str,
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH, UserRole.BRANCH_MANAGER]))
 ):
     """Get courses assigned to a specific coach"""
     return await CoachController.get_coach_courses(coach_id, current_user)
@@ -92,7 +92,7 @@ async def get_coach_courses(
 @router.get("/{coach_id}/students")
 async def get_coach_students(
     coach_id: str,
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH, UserRole.BRANCH_MANAGER]))
 ):
     """Get students enrolled in courses taught by a specific coach"""
     return await CoachController.get_coach_students(coach_id, current_user)

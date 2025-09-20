@@ -198,14 +198,54 @@ class CoachController:
         }
 
     @staticmethod
-    async def get_coach_by_id(coach_id: str):
-        """Get coach by ID"""
+    async def get_coach_by_id(coach_id: str, current_user: dict = None):
+        """Get coach by ID - accessible by Super Admin, Coach Admin, Coach, and Branch Manager"""
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
         db = get_db()
-        
+
         coach = await db.coaches.find_one({"id": coach_id})
         if not coach:
             raise HTTPException(status_code=404, detail="Coach not found")
-        
+
+        # Role-based access control
+        current_role = current_user.get("role")
+        if current_role == "branch_manager":
+            # Branch managers can only view coaches working in branches they manage
+            print(f"🔍 DEBUG: Branch manager {current_user.get('id')} trying to access coach {coach_id}")
+            print(f"🔍 DEBUG: Current user data: {current_user}")
+            print(f"🔍 DEBUG: Coach data: {coach}")
+
+            # Get managed branches - try multiple approaches
+            managed_branch_ids = []
+
+            # Approach 1: Check branch_assignment field
+            branch_assignment = current_user.get("branch_assignment", {})
+            if branch_assignment and branch_assignment.get("branch_id"):
+                managed_branch_ids.append(branch_assignment.get("branch_id"))
+                print(f"🔍 DEBUG: Found branch from branch_assignment: {branch_assignment.get('branch_id')}")
+
+            # Approach 2: Check if this branch manager is assigned as manager_id in any branches
+            branch_manager_id = current_user.get("id")
+            if branch_manager_id:
+                managed_branches = await db.branches.find({"manager_id": branch_manager_id, "is_active": True}).to_list(100)
+                for branch in managed_branches:
+                    managed_branch_ids.append(branch["id"])
+                    print(f"🔍 DEBUG: Found branch from manager_id: {branch['id']}")
+
+            if not managed_branch_ids:
+                print(f"🔍 DEBUG: No managed branches found for branch manager")
+                raise HTTPException(status_code=403, detail="No branch assignment found for branch manager")
+
+            # Check if coach is assigned to any of the managed branches
+            coach_branch_id = coach.get("branch_id")
+            print(f"🔍 DEBUG: Coach branch_id: {coach_branch_id}")
+            print(f"🔍 DEBUG: Managed branch IDs: {managed_branch_ids}")
+
+            if coach_branch_id not in managed_branch_ids:
+                raise HTTPException(status_code=403, detail="You can only view coaches working in branches you manage")
+
         # Convert to response format
         coach_response = CoachResponse(
             id=coach["id"],
@@ -222,7 +262,7 @@ class CoachController:
             created_at=coach["created_at"],
             updated_at=coach["updated_at"]
         )
-        
+
         return coach_response.dict()
 
     @staticmethod
@@ -383,6 +423,33 @@ class CoachController:
         if not coach:
             raise HTTPException(status_code=404, detail="Coach not found")
 
+        # Role-based access control
+        current_role = current_user.get("role")
+        if current_role == "branch_manager":
+            # Branch managers can only view courses for coaches in branches they manage
+            # Get managed branches - try multiple approaches
+            managed_branch_ids = []
+
+            # Approach 1: Check branch_assignment field
+            branch_assignment = current_user.get("branch_assignment", {})
+            if branch_assignment and branch_assignment.get("branch_id"):
+                managed_branch_ids.append(branch_assignment.get("branch_id"))
+
+            # Approach 2: Check if this branch manager is assigned as manager_id in any branches
+            branch_manager_id = current_user.get("id")
+            if branch_manager_id:
+                managed_branches = await db.branches.find({"manager_id": branch_manager_id, "is_active": True}).to_list(100)
+                for branch in managed_branches:
+                    managed_branch_ids.append(branch["id"])
+
+            if not managed_branch_ids:
+                raise HTTPException(status_code=403, detail="No branch assignment found for branch manager")
+
+            # Check if coach is assigned to any of the managed branches
+            coach_branch_id = coach.get("branch_id")
+            if coach_branch_id not in managed_branch_ids:
+                raise HTTPException(status_code=403, detail="You can only view courses for coaches in branches you manage")
+
         # Permission check: coaches can only view their own courses unless admin
         if current_user["role"] == UserRole.COACH and current_user["id"] != coach_id:
             raise HTTPException(status_code=403, detail="You can only view your own course assignments")
@@ -455,6 +522,33 @@ class CoachController:
         coach = await db.coaches.find_one({"id": coach_id})
         if not coach:
             raise HTTPException(status_code=404, detail="Coach not found")
+
+        # Role-based access control
+        current_role = current_user.get("role")
+        if current_role == "branch_manager":
+            # Branch managers can only view students for coaches in branches they manage
+            # Get managed branches - try multiple approaches
+            managed_branch_ids = []
+
+            # Approach 1: Check branch_assignment field
+            branch_assignment = current_user.get("branch_assignment", {})
+            if branch_assignment and branch_assignment.get("branch_id"):
+                managed_branch_ids.append(branch_assignment.get("branch_id"))
+
+            # Approach 2: Check if this branch manager is assigned as manager_id in any branches
+            branch_manager_id = current_user.get("id")
+            if branch_manager_id:
+                managed_branches = await db.branches.find({"manager_id": branch_manager_id, "is_active": True}).to_list(100)
+                for branch in managed_branches:
+                    managed_branch_ids.append(branch["id"])
+
+            if not managed_branch_ids:
+                raise HTTPException(status_code=403, detail="No branch assignment found for branch manager")
+
+            # Check if coach is assigned to any of the managed branches
+            coach_branch_id = coach.get("branch_id")
+            if coach_branch_id not in managed_branch_ids:
+                raise HTTPException(status_code=403, detail="You can only view students for coaches in branches you manage")
 
         # Permission check: coaches can only view their own students unless admin
         if current_user["role"] == UserRole.COACH and current_user["id"] != coach_id:

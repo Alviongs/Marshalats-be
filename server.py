@@ -103,7 +103,11 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "timestamp": "2024-01-01T00:00:00Z"}
+    return {"status": "healthy", "timestamp": "2024-01-01T00:00:00Z", "version": "updated-coach-auth"}
+
+@app.get("/test-coach-auth")
+async def test_coach_auth():
+    return {"message": "Coach authorization logic has been updated", "timestamp": "2025-09-20"}
 
 if __name__ == "__main__":
     import uvicorn

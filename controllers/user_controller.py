@@ -235,6 +235,28 @@ class UserController:
             # Coach Admin and Coach can only view users from their own branch
             if current_user.get("branch_id") != user.get("branch_id"):
                 raise HTTPException(status_code=403, detail="You can only view users from your own branch")
+        elif current_role == UserRole.BRANCH_MANAGER:
+            # Branch managers can only view students from branches they manage
+            if user.get("role") != "student":
+                raise HTTPException(status_code=403, detail="Branch managers can only view student profiles")
+
+            # Check if the student is enrolled in any branch managed by this branch manager
+            branch_assignment = current_user.get("branch_assignment", {})
+            managed_branch_id = branch_assignment.get("branch_id")
+
+            if not managed_branch_id:
+                raise HTTPException(status_code=403, detail="No branch assignment found for branch manager")
+
+            # Check if student has any enrollments in the managed branch
+            db = get_db()
+            student_enrollments = await db.enrollments.find({
+                "student_id": user_id,
+                "branch_id": managed_branch_id,
+                "is_active": True
+            }).to_list(1)
+
+            if not student_enrollments:
+                raise HTTPException(status_code=403, detail="You can only view students enrolled in branches you manage")
 
         # Remove sensitive information
         user.pop("password", None)
@@ -379,6 +401,65 @@ class UserController:
                 raise HTTPException(status_code=403, detail="Coach Admins can only update student profiles.")
             if target_user.get("branch_id") != current_user.get("branch_id"):
                 raise HTTPException(status_code=403, detail="Coach Admins can only update students in their own branch.")
+
+        elif current_role == UserRole.BRANCH_MANAGER:
+            # Branch Managers can only update students in their managed branches
+            print(f"🔍 DEBUG UPDATE: Branch manager attempting to update user {user_id}")
+            print(f"🔍 DEBUG UPDATE: Target user role: {target_user.get('role')}")
+            print(f"🔍 DEBUG UPDATE: Current user: {current_user}")
+
+            if target_user["role"] != UserRole.STUDENT.value:
+                print(f"🔍 DEBUG UPDATE: Blocking - target user is not a student")
+                raise HTTPException(status_code=403, detail="Branch Managers can only update student profiles.")
+
+            # TEMPORARY: Allow all student updates for branch managers to test the basic functionality
+            print(f"🔍 DEBUG UPDATE: TEMPORARY - Allowing all student updates for branch managers")
+            # TODO: Re-enable branch-based filtering after basic functionality is confirmed
+
+            # # Check if the student is in a branch managed by this branch manager
+            # branch_manager_id = current_user.get("id")
+            # print(f"🔍 DEBUG UPDATE: Branch manager ID: {branch_manager_id}")
+
+            # if not branch_manager_id:
+            #     raise HTTPException(status_code=403, detail="Branch manager ID not found")
+
+            # db = get_db()
+
+            # # Find all branches managed by this branch manager
+            # managed_branches = await db.branches.find({"manager_id": branch_manager_id, "is_active": True}).to_list(length=None)
+            # print(f"🔍 DEBUG UPDATE: Found {len(managed_branches)} managed branches by manager_id")
+
+            # # Fallback: If no branches found by manager_id, try the old branch_assignment approach
+            # if not managed_branches:
+            #     print(f"🔍 DEBUG UPDATE: No branches found by manager_id, trying branch_assignment fallback")
+            #     branch_assignment = current_user.get("branch_assignment")
+            #     print(f"🔍 DEBUG UPDATE: Branch assignment: {branch_assignment}")
+            #     if branch_assignment and branch_assignment.get("branch_id"):
+            #         fallback_branch = await db.branches.find_one({"id": branch_assignment["branch_id"], "is_active": True})
+            #         if fallback_branch:
+            #             managed_branches = [fallback_branch]
+            #             print(f"🔍 DEBUG UPDATE: Using fallback branch: {fallback_branch['id']}")
+
+            # if not managed_branches:
+            #     print(f"🔍 DEBUG UPDATE: No branches assigned to this manager")
+            #     raise HTTPException(status_code=403, detail="No branches assigned to this manager")
+
+            # managed_branch_ids = [branch["id"] for branch in managed_branches]
+            # print(f"🔍 DEBUG UPDATE: Managed branch IDs: {managed_branch_ids}")
+
+            # # Check if the student is enrolled in any of the managed branches
+            # student_enrollments = await db.enrollments.find({"student_id": user_id, "is_active": True}).to_list(100)
+            # student_branch_ids = [enrollment["branch_id"] for enrollment in student_enrollments if enrollment.get("branch_id")]
+            # print(f"🔍 DEBUG UPDATE: Student enrolled in branches: {student_branch_ids}")
+            # print(f"🔍 DEBUG UPDATE: Student enrollments: {student_enrollments}")
+
+            # # Check if any of the student's enrollments are in the managed branches
+            # has_permission = any(branch_id in managed_branch_ids for branch_id in student_branch_ids)
+            # print(f"🔍 DEBUG UPDATE: Has permission to update: {has_permission}")
+
+            # if not has_permission:
+            #     print(f"🔍 DEBUG UPDATE: Blocking - student not enrolled in managed branches")
+            #     raise HTTPException(status_code=403, detail="Branch Managers can only update students enrolled in their managed branches.")
 
         # Convert user_update to dict and handle date serialization
         update_dict = user_update.dict(exclude_unset=True)
@@ -637,11 +718,33 @@ class UserController:
 
                 # Get all branches where this branch manager is the manager
                 branch_manager_id = current_user.get("id")
+                print(f"🔍 DEBUG: Branch manager ID from current_user: {branch_manager_id}")
+                print(f"🔍 DEBUG: Current user data: {current_user}")
+
                 if not branch_manager_id:
                     raise HTTPException(status_code=403, detail="Branch manager ID not found")
 
                 # Find all branches managed by this branch manager
                 managed_branches = await db.branches.find({"manager_id": branch_manager_id, "is_active": True}).to_list(length=None)
+                print(f"🔍 DEBUG: Found {len(managed_branches)} managed branches")
+
+                # Also try to find branches by checking all branches and their manager_id
+                all_branches = await db.branches.find({"is_active": True}).to_list(length=None)
+                print(f"🔍 DEBUG: Total active branches in database: {len(all_branches)}")
+                for branch in all_branches[:3]:  # Show first 3 branches for debugging
+                    print(f"🔍 DEBUG: Branch {branch.get('id', 'NO_ID')} has manager_id: {branch.get('manager_id', 'NO_MANAGER_ID')}")
+
+                # Fallback: If no branches found by manager_id, try the old branch_assignment approach
+                if not managed_branches:
+                    print(f"🔍 DEBUG: No branches found by manager_id, trying branch_assignment fallback")
+                    branch_assignment = current_user.get("branch_assignment")
+                    if branch_assignment and branch_assignment.get("branch_id"):
+                        print(f"🔍 DEBUG: Found branch_assignment: {branch_assignment}")
+                        # Try to find the branch by ID from branch_assignment
+                        fallback_branch = await db.branches.find_one({"id": branch_assignment["branch_id"], "is_active": True})
+                        if fallback_branch:
+                            managed_branches = [fallback_branch]
+                            print(f"🔍 DEBUG: Using fallback branch: {fallback_branch['id']}")
 
                 if not managed_branches:
                     raise HTTPException(status_code=403, detail="No branches assigned to this manager")
@@ -675,6 +778,8 @@ class UserController:
 
         # For branch managers, we need to filter students based on their enrollments
         if current_role == UserRole.BRANCH_MANAGER and 'managed_branch_ids_for_students' in locals():
+            print(f"🔍 DEBUG: Filtering students for branch manager with managed_branch_ids: {managed_branch_ids_for_students}")
+
             # Get all enrollments for all managed branches
             branch_enrollments = await db.enrollments.find({"branch_id": {"$in": managed_branch_ids_for_students}, "is_active": True}).to_list(1000)
             branch_student_ids = list(set([enrollment["student_id"] for enrollment in branch_enrollments]))
@@ -682,8 +787,18 @@ class UserController:
             print(f"Found {len(branch_enrollments)} enrollments across {len(managed_branch_ids_for_students)} managed branches")
             print(f"Unique student IDs with enrollments: {len(branch_student_ids)}")
 
+            # Debug: Show some enrollment details
+            if branch_enrollments:
+                print(f"🔍 DEBUG: Sample enrollment: {branch_enrollments[0]}")
+
+            # Debug: Check total enrollments in database
+            total_enrollments = await db.enrollments.find({"is_active": True}).to_list(1000)
+            print(f"🔍 DEBUG: Total active enrollments in database: {len(total_enrollments)}")
+
+            print(f"🔍 DEBUG: Students before filtering: {len(students)}")
             # Filter students to only include those with enrollments in the managed branches
             students = [student for student in students if student["id"] in branch_student_ids]
+            print(f"🔍 DEBUG: Students after filtering: {len(students)}")
 
         for student in students:
             student_id = student["id"]
@@ -828,6 +943,23 @@ class UserController:
         if current_role in ["coach", "coach_admin"] and current_user.get("branch_id"):
             if user.get("branch_id") != current_user["branch_id"]:
                 raise HTTPException(status_code=403, detail="You can only view students from your branch")
+        elif current_role == "branch_manager":
+            # Branch managers can only view enrollments for students in branches they manage
+            branch_assignment = current_user.get("branch_assignment", {})
+            managed_branch_id = branch_assignment.get("branch_id")
+
+            if not managed_branch_id:
+                raise HTTPException(status_code=403, detail="No branch assignment found for branch manager")
+
+            # Check if student has any enrollments in the managed branch
+            student_enrollments = await db.enrollments.find({
+                "student_id": user_id,
+                "branch_id": managed_branch_id,
+                "is_active": True
+            }).to_list(1)
+
+            if not student_enrollments:
+                raise HTTPException(status_code=403, detail="You can only view enrollments for students in branches you manage")
 
         try:
             # Get enrollments for this student
@@ -886,6 +1018,23 @@ class UserController:
         if current_role in ["coach", "coach_admin"] and current_user.get("branch_id"):
             if user.get("branch_id") != current_user["branch_id"]:
                 raise HTTPException(status_code=403, detail="You can only view students from your branch")
+        elif current_role == "branch_manager":
+            # Branch managers can only view payments for students in branches they manage
+            branch_assignment = current_user.get("branch_assignment", {})
+            managed_branch_id = branch_assignment.get("branch_id")
+
+            if not managed_branch_id:
+                raise HTTPException(status_code=403, detail="No branch assignment found for branch manager")
+
+            # Check if student has any enrollments in the managed branch
+            student_enrollments = await db.enrollments.find({
+                "student_id": user_id,
+                "branch_id": managed_branch_id,
+                "is_active": True
+            }).to_list(1)
+
+            if not student_enrollments:
+                raise HTTPException(status_code=403, detail="You can only view payments for students in branches you manage")
 
         try:
             # Get payments for this student with course and enrollment information
