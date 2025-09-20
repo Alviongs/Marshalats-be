@@ -19,6 +19,7 @@ from .email_routes import router as email_router
 from .dashboard_routes import router as dashboard_router
 from .settings_routes import router as settings_router
 from .reports_routes import router as reports_router
+from .attendance_routes import router as attendance_router
 
 __all__ = [
     'auth_router',

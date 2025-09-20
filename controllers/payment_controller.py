@@ -328,13 +328,41 @@ class PaymentController:
         return {"message": "Notification marked as read"}
 
     @staticmethod
-    async def get_payment_stats():
+    async def get_payment_stats(current_user: dict = None):
         """Get payment statistics for dashboard"""
         db = get_db()
 
+        # Build base filter for role-based access
+        base_filter = {}
+        if current_user:
+            current_role = current_user.get("role")
+            if current_role == "branch_manager":
+                # Branch managers can only see stats from their managed branches
+                branch_manager_id = current_user.get("id")
+                if not branch_manager_id:
+                    raise HTTPException(status_code=403, detail="Branch manager ID not found")
+
+                # Find all branches managed by this branch manager
+                managed_branches = await db.branches.find({"manager_id": branch_manager_id, "is_active": True}).to_list(length=None)
+
+                if not managed_branches:
+                    return {
+                        "total_collected": 0,
+                        "pending_payments": 0,
+                        "this_month_collection": 0,
+                        "total_students": 0
+                    }
+
+                # Get all branch IDs managed by this branch manager
+                managed_branch_ids = [branch["id"] for branch in managed_branches]
+                print(f"Branch manager {branch_manager_id} manages branches for payment stats: {managed_branch_ids}")
+
+                # Filter by branch_id in branch_details
+                base_filter["branch_details.branch_id"] = {"$in": managed_branch_ids}
+
         # Get total collected (paid payments)
         total_collected_pipeline = [
-            {"$match": {"payment_status": PaymentStatus.PAID.value}},
+            {"$match": {**base_filter, "payment_status": PaymentStatus.PAID.value}},
             {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
         ]
         total_collected_result = await db.payments.aggregate(total_collected_pipeline).to_list(1)
@@ -342,7 +370,7 @@ class PaymentController:
 
         # Get pending payments
         pending_payments_pipeline = [
-            {"$match": {"payment_status": PaymentStatus.PENDING.value}},
+            {"$match": {**base_filter, "payment_status": PaymentStatus.PENDING.value}},
             {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
         ]
         pending_payments_result = await db.payments.aggregate(pending_payments_pipeline).to_list(1)
@@ -354,6 +382,7 @@ class PaymentController:
         this_month_pipeline = [
             {
                 "$match": {
+                    **base_filter,
                     "payment_status": PaymentStatus.PAID.value,
                     "payment_date": {"$gte": current_month_start}
                 }
@@ -363,8 +392,17 @@ class PaymentController:
         this_month_result = await db.payments.aggregate(this_month_pipeline).to_list(1)
         this_month_collection = this_month_result[0]["total"] if this_month_result else 0
 
-        # Get total students count
-        total_students = await db.users.count_documents({"role": "student"})
+        # Get total students count (for branch managers, count students in their branches)
+        if current_user and current_user.get("role") == "branch_manager":
+            # Count students enrolled in courses at managed branches
+            managed_branch_ids = base_filter.get("branch_details.branch_id", {}).get("$in", [])
+            if managed_branch_ids:
+                student_count = await db.enrollments.distinct("student_id", {"branch_id": {"$in": managed_branch_ids}, "is_active": True})
+                total_students = len(student_count)
+            else:
+                total_students = 0
+        else:
+            total_students = await db.users.count_documents({"role": "student"})
 
         return {
             "total_collected": total_collected,
@@ -374,7 +412,7 @@ class PaymentController:
         }
 
     @staticmethod
-    async def get_payments(skip: int = 0, limit: int = 50, status: str = None, payment_type: str = None):
+    async def get_payments(skip: int = 0, limit: int = 50, status: str = None, payment_type: str = None, current_user: dict = None):
         """Get payments with filtering and student information"""
         try:
             db = get_db()
@@ -388,6 +426,29 @@ class PaymentController:
                 filter_query["payment_status"] = status
             if payment_type and payment_type != "all":
                 filter_query["payment_type"] = payment_type
+
+            # Apply role-based filtering for branch managers
+            managed_branch_ids = None
+            if current_user:
+                current_role = current_user.get("role")
+                if current_role == "branch_manager":
+                    # Branch managers can only see payments from their managed branches
+                    branch_manager_id = current_user.get("id")
+                    if not branch_manager_id:
+                        raise HTTPException(status_code=403, detail="Branch manager ID not found")
+
+                    # Find all branches managed by this branch manager
+                    managed_branches = await db.branches.find({"manager_id": branch_manager_id, "is_active": True}).to_list(length=None)
+
+                    if not managed_branches:
+                        return {"payments": []}
+
+                    # Get all branch IDs managed by this branch manager
+                    managed_branch_ids = [branch["id"] for branch in managed_branches]
+                    print(f"Branch manager {branch_manager_id} manages branches for payments: {managed_branch_ids}")
+
+                    # Filter payments by branch_id in branch_details
+                    filter_query["branch_details.branch_id"] = {"$in": managed_branch_ids}
 
             # Get payments with student information
             pipeline = [

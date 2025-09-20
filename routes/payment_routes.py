@@ -5,7 +5,7 @@ from models.student_models import StudentPaymentCreate
 from models.payment_models import RegistrationPaymentCreate
 from models.user_models import UserRole
 from utils.auth import require_role
-from utils.unified_auth import require_role_unified
+from utils.unified_auth import require_role_unified, get_current_user_or_superadmin
 
 router = APIRouter()
 
@@ -49,10 +49,10 @@ async def mark_notification_read(
 
 @router.get("/stats")
 async def get_payment_stats(
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
 ):
     """Get payment statistics for dashboard"""
-    return await PaymentController.get_payment_stats()
+    return await PaymentController.get_payment_stats(current_user)
 
 @router.get("")
 async def get_payments(
@@ -60,7 +60,7 @@ async def get_payments(
     limit: int = Query(50, ge=1, le=100),
     status: Optional[str] = Query(None),
     payment_type: Optional[str] = Query(None),
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
 ):
     """Get payments with filtering"""
-    return await PaymentController.get_payments(skip, limit, status, payment_type)
+    return await PaymentController.get_payments(skip, limit, status, payment_type, current_user)
