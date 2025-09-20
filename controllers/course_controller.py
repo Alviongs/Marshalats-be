@@ -53,16 +53,46 @@ class CourseController:
         if instructor_id:
             filter_query["instructor_id"] = instructor_id
 
+        # Apply role-based filtering for branch managers
+        current_role = current_user.get("role")
+        managed_branch_ids = None
+
+        if current_role == "branch_manager":
+            # Branch managers can only see courses from their managed branches
+            branch_manager_id = current_user.get("id")
+            if not branch_manager_id:
+                raise HTTPException(status_code=403, detail="Branch manager ID not found")
+
+            # Find all branches managed by this branch manager
+            managed_branches = await db.branches.find({"manager_id": branch_manager_id, "is_active": True}).to_list(length=None)
+
+            if not managed_branches:
+                return {"courses": []}
+
+            # Get all branch IDs managed by this branch manager
+            managed_branch_ids = [branch["id"] for branch in managed_branches]
+            print(f"Branch manager {branch_manager_id} manages branches for courses: {managed_branch_ids}")
+
         courses = await db.courses.find(filter_query).skip(skip).limit(limit).to_list(length=limit)
 
         # Enhance courses with additional data
         enhanced_courses = []
         for course in courses:
             # Get branch assignments for this course
-            branches = await db.branches.find({
+            branch_query = {
                 "assignments.courses": course["id"],
                 "is_active": True
-            }).to_list(length=100)
+            }
+
+            # For branch managers, only include branches they manage
+            if managed_branch_ids is not None:
+                branch_query["id"] = {"$in": managed_branch_ids}
+
+            branches = await db.branches.find(branch_query).to_list(length=100)
+
+            # For branch managers, skip courses that aren't assigned to any of their managed branches
+            if managed_branch_ids is not None and len(branches) == 0:
+                continue
 
             # Get instructor assignments (coaches assigned to this course)
             # Query coaches collection for coaches assigned to this specific course

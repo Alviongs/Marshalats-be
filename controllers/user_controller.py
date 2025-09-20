@@ -633,14 +633,25 @@ class UserController:
         if current_role != UserRole.SUPER_ADMIN:
             if current_role == UserRole.BRANCH_MANAGER:
                 # Branch managers can see students from their managed branches
-                # Get the branch assignment from the branch manager's profile
-                branch_assignment = current_user.get("branch_assignment")
-                if branch_assignment and branch_assignment.get("branch_id"):
-                    # For branch managers, we need to find students enrolled in courses at their branch
-                    # We'll filter by enrollments later since students might not have branch_id directly
-                    managed_branch_id = branch_assignment["branch_id"]
-                else:
-                    raise HTTPException(status_code=403, detail="No branch assigned to this manager")
+                # We need to find all branches managed by this branch manager, not just one branch_id
+
+                # Get all branches where this branch manager is the manager
+                branch_manager_id = current_user.get("id")
+                if not branch_manager_id:
+                    raise HTTPException(status_code=403, detail="Branch manager ID not found")
+
+                # Find all branches managed by this branch manager
+                managed_branches = await db.branches.find({"manager_id": branch_manager_id, "is_active": True}).to_list(length=None)
+
+                if not managed_branches:
+                    raise HTTPException(status_code=403, detail="No branches assigned to this manager")
+
+                # Get all branch IDs managed by this branch manager
+                managed_branch_ids = [branch["id"] for branch in managed_branches]
+                print(f"Branch manager {branch_manager_id} manages branches for students: {managed_branch_ids}")
+
+                # Store for later use in enrollment filtering
+                managed_branch_ids_for_students = managed_branch_ids
             else:
                 # For other roles (coaches, etc.), use their branch_id
                 user_branch_id = current_user.get("branch_id")
@@ -663,12 +674,15 @@ class UserController:
         enriched_students = []
 
         # For branch managers, we need to filter students based on their enrollments
-        if current_role == UserRole.BRANCH_MANAGER and 'managed_branch_id' in locals():
-            # Get all enrollments for the managed branch
-            branch_enrollments = await db.enrollments.find({"branch_id": managed_branch_id, "is_active": True}).to_list(1000)
+        if current_role == UserRole.BRANCH_MANAGER and 'managed_branch_ids_for_students' in locals():
+            # Get all enrollments for all managed branches
+            branch_enrollments = await db.enrollments.find({"branch_id": {"$in": managed_branch_ids_for_students}, "is_active": True}).to_list(1000)
             branch_student_ids = list(set([enrollment["student_id"] for enrollment in branch_enrollments]))
 
-            # Filter students to only include those with enrollments in the managed branch
+            print(f"Found {len(branch_enrollments)} enrollments across {len(managed_branch_ids_for_students)} managed branches")
+            print(f"Unique student IDs with enrollments: {len(branch_student_ids)}")
+
+            # Filter students to only include those with enrollments in the managed branches
             students = [student for student in students if student["id"] in branch_student_ids]
 
         for student in students:

@@ -34,12 +34,35 @@ class BranchController:
         limit: int = 50,
         current_user: dict = None
     ):
-        """Get all branches with nested structure and statistics"""
+        """Get branches with nested structure and statistics, filtered by user role"""
         if not current_user:
             raise HTTPException(status_code=401, detail="Authentication required")
 
         db = get_db()
-        branches = await db.branches.find({"is_active": True}).skip(skip).limit(limit).to_list(length=limit)
+
+        # Build filter query based on user role
+        filter_query = {"is_active": True}
+        current_role = current_user.get("role")
+
+        if current_role == "branch_manager":
+            # Branch managers can only see branches they manage
+            # Get the branch assignment from the branch manager's profile
+            branch_assignment = current_user.get("branch_assignment")
+
+            if branch_assignment and branch_assignment.get("branch_id"):
+                # Filter to only show branches managed by this branch manager
+                filter_query["manager_id"] = current_user.get("id")
+            else:
+                # If no branch is assigned, return empty result
+                return {
+                    "branches": [],
+                    "total_count": 0,
+                    "skip": skip,
+                    "limit": limit,
+                    "message": "No branches assigned to this manager"
+                }
+
+        branches = await db.branches.find(filter_query).skip(skip).limit(limit).to_list(length=limit)
 
         # Enhance branches with coach and student counts
         enhanced_branches = []

@@ -134,19 +134,37 @@ class CoachController:
         current_role = current_user.get("role")
         if current_role == "branch_manager":
             # Branch managers can only see coaches in their managed branches
-            # Get the branch assignment from the branch manager's profile
-            branch_assignment = current_user.get("branch_assignment")
-            if branch_assignment and branch_assignment.get("branch_id"):
-                filter_query["branch_id"] = branch_assignment["branch_id"]
-            else:
-                # If no branch is assigned, return empty result
+            # We need to find all branches managed by this branch manager, not just one branch_id
+
+            # Get all branches where this branch manager is the manager
+            branch_manager_id = current_user.get("id")
+            if not branch_manager_id:
                 return {
                     "coaches": [],
                     "total_count": 0,
                     "skip": skip,
                     "limit": limit,
-                    "message": "No branch assigned to this manager"
+                    "message": "Branch manager ID not found"
                 }
+
+            # Find all branches managed by this branch manager
+            managed_branches = await db.branches.find({"manager_id": branch_manager_id, "is_active": True}).to_list(length=None)
+
+            if not managed_branches:
+                return {
+                    "coaches": [],
+                    "total_count": 0,
+                    "skip": skip,
+                    "limit": limit,
+                    "message": "No branches assigned to this manager"
+                }
+
+            # Get all branch IDs managed by this branch manager
+            managed_branch_ids = [branch["id"] for branch in managed_branches]
+            print(f"Branch manager {branch_manager_id} manages branches: {managed_branch_ids}")
+
+            # Filter coaches to only those in the managed branches
+            filter_query["branch_id"] = {"$in": managed_branch_ids}
         
         coaches = await db.coaches.find(filter_query).skip(skip).limit(limit).to_list(length=limit)
         
