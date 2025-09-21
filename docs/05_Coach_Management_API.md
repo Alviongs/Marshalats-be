@@ -5,7 +5,7 @@ The Coach Management API provides comprehensive functionality for managing marti
 
 ## Base URL
 ```
-Development: http://localhost:8003/api/coaches
+Development: http://31.97.224.169:8003/api/coaches
 Production: https://edumanage-44.preview.dev.com/api/coaches
 ```
 
@@ -20,7 +20,7 @@ For coach management operations, you can use either coach login or superadmin lo
 
 #### Option 1: Coach Login
 ```bash
-curl -X POST "http://localhost:8003/api/coaches/login" \
+curl -X POST "http://31.97.224.169:8003/api/coaches/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "coach@example.com",
@@ -30,7 +30,7 @@ curl -X POST "http://localhost:8003/api/coaches/login" \
 
 #### Option 2: Superadmin Login (Full Access)
 ```bash
-curl -X POST "http://localhost:8003/api/superadmin/login" \
+curl -X POST "http://31.97.224.169:8003/api/superadmin/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "superadmin@example.com",
@@ -489,7 +489,7 @@ Get coach statistics and analytics.
 
 ### Coach Login
 ```bash
-curl -X POST "http://localhost:8003/api/coaches/login" \
+curl -X POST "http://31.97.224.169:8003/api/coaches/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "coach@example.com",
@@ -499,7 +499,7 @@ curl -X POST "http://localhost:8003/api/coaches/login" \
 
 ### Create New Coach (Super Admin)
 ```bash
-curl -X POST "http://localhost:8003/api/coaches" \
+curl -X POST "http://31.97.224.169:8003/api/coaches" \
   -H "Authorization: Bearer <super_admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -520,13 +520,13 @@ curl -X POST "http://localhost:8003/api/coaches" \
 
 ### Get Coaches by Expertise
 ```bash
-curl -X GET "http://localhost:8003/api/coaches?area_of_expertise=Karate&limit=20" \
+curl -X GET "http://31.97.224.169:8003/api/coaches?area_of_expertise=Karate&limit=20" \
   -H "Authorization: Bearer <token>"
 ```
 
 ### Update Coach Information
 ```bash
-curl -X PUT "http://localhost:8003/api/coaches/coach-uuid-here" \
+curl -X PUT "http://31.97.224.169:8003/api/coaches/coach-uuid-here" \
   -H "Authorization: Bearer <admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -571,7 +571,7 @@ curl -X PUT "http://localhost:8003/api/coaches/coach-uuid-here" \
 
 ### Step 1: Get Superadmin Token
 ```bash
-curl -X POST "http://localhost:8003/api/superadmin/login" \
+curl -X POST "http://31.97.224.169:8003/api/superadmin/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "superadmin@example.com",
@@ -581,25 +581,25 @@ curl -X POST "http://localhost:8003/api/superadmin/login" \
 
 ### Step 2: Retrieve All Coaches
 ```bash
-curl -X GET "http://localhost:8003/api/coaches" \
+curl -X GET "http://31.97.224.169:8003/api/coaches" \
   -H "Authorization: Bearer <token_from_step_1>"
 ```
 
 ### Step 3: Get Specific Coach
 ```bash
-curl -X GET "http://localhost:8003/api/coaches/<coach_id>" \
+curl -X GET "http://31.97.224.169:8003/api/coaches/<coach_id>" \
   -H "Authorization: Bearer <token_from_step_1>"
 ```
 
 ### Step 4: Get Coach Statistics
 ```bash
-curl -X GET "http://localhost:8003/api/coaches/stats/overview" \
+curl -X GET "http://31.97.224.169:8003/api/coaches/stats/overview" \
   -H "Authorization: Bearer <token_from_step_1>"
 ```
 
 ### Step 5: Coach Login (Alternative Authentication)
 ```bash
-curl -X POST "http://localhost:8003/api/coaches/login" \
+curl -X POST "http://31.97.224.169:8003/api/coaches/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "coach@example.com",

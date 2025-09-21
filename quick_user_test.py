@@ -6,7 +6,7 @@ Simple test for user list API
 import requests
 import json
 
-BASE_URL = "http://localhost:8003"
+BASE_URL = "http://31.97.224.169:8003"
 
 def quick_test():
     print("🔍 Quick User List API Test")
