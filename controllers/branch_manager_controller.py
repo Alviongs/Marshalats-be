@@ -289,13 +289,23 @@ class BranchManagerController:
         request: Request,
         current_admin: dict
     ):
-        """Delete branch manager"""
+        """Delete branch manager with proper relationship handling"""
         db = get_db()
 
         # Check if manager exists
         manager = await db.branch_managers.find_one({"id": manager_id})
         if not manager:
             raise HTTPException(status_code=404, detail="Branch manager not found")
+
+        # Check if manager is assigned to any branches
+        assigned_branches = await db.branches.find({"manager_id": manager_id}).to_list(length=100)
+
+        if assigned_branches:
+            branch_names = [branch.get("branch", {}).get("name", "Unknown") for branch in assigned_branches]
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot delete branch manager. They are currently assigned to {len(assigned_branches)} branch(es): {', '.join(branch_names)}. Please reassign these branches to another manager first."
+            )
 
         # Delete the manager
         result = await db.branch_managers.delete_one({"id": manager_id})
