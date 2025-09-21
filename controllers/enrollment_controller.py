@@ -14,18 +14,41 @@ class EnrollmentController:
     @staticmethod
     async def create_enrollment(
         enrollment_data: EnrollmentCreate,
-        current_user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN]))
+        current_user: dict = None
     ):
         """Create student enrollment"""
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
+        # Get current user role
+        current_role = current_user.get("role")
+        if isinstance(current_role, str):
+            try:
+                current_role = UserRole(current_role)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid user role")
+
+        # Branch manager permission check
+        if current_role == UserRole.BRANCH_MANAGER:
+            # Get branch manager's assigned branch
+            branch_manager_branch_id = current_user.get("branch_assignment", {}).get("branch_id") or current_user.get("branch_id")
+            if not branch_manager_branch_id or enrollment_data.branch_id != branch_manager_branch_id:
+                raise HTTPException(status_code=403, detail="Branch Managers can only create enrollments for their assigned branch.")
+
+        # Coach admin permission check
+        if current_role == UserRole.COACH_ADMIN:
+            if not current_user.get("branch_id") or enrollment_data.branch_id != current_user["branch_id"]:
+                raise HTTPException(status_code=403, detail="Coach Admins can only create enrollments for their own branch.")
+
         # Validate student, course, and branch exist
         student = await db.users.find_one({"id": enrollment_data.student_id, "role": "student"})
         if not student:
             raise HTTPException(status_code=404, detail="Student not found")
-        
+
         course = await db.courses.find_one({"id": enrollment_data.course_id})
         if not course:
             raise HTTPException(status_code=404, detail="Course not found")
-        
+
         branch = await db.branches.find_one({"id": enrollment_data.branch_id})
         if not branch:
             raise HTTPException(status_code=404, detail="Branch not found")

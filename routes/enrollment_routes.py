@@ -5,13 +5,14 @@ from models.enrollment_models import EnrollmentCreate
 from models.student_models import StudentEnrollmentCreate
 from models.user_models import UserRole
 from utils.auth import require_role, get_current_active_user
+from utils.unified_auth import require_role_unified
 
 router = APIRouter()
 
 @router.post("")
 async def create_enrollment(
     enrollment_data: EnrollmentCreate,
-    current_user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
 ):
     return await EnrollmentController.create_enrollment(enrollment_data, current_user)
 

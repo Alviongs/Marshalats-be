@@ -37,6 +37,16 @@ class UserController:
             if user_data.role in [UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN]:
                 raise HTTPException(status_code=403, detail="Coach Admins cannot create other admin users.")
 
+        # If a branch manager is creating a user, they must be in the same branch
+        if current_role == UserRole.BRANCH_MANAGER:
+            # Get branch manager's assigned branch
+            branch_manager_branch_id = current_user.get("branch_assignment", {}).get("branch_id") or current_user.get("branch_id")
+            if not branch_manager_branch_id or user_data.branch_id != branch_manager_branch_id:
+                raise HTTPException(status_code=403, detail="Branch Managers can only create users for their assigned branch.")
+            # Branch managers cannot create admin users
+            if user_data.role in [UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]:
+                raise HTTPException(status_code=403, detail="Branch Managers cannot create admin users.")
+
         # Check if user exists
         db = get_db()
         existing_user = await db.users.find_one({
