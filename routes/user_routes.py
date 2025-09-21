@@ -74,6 +74,102 @@ async def force_password_reset(
 ):
     return await UserController.force_password_reset(user_id, request, current_user)
 
+@router.get("/debug/current-user")
+async def debug_current_user(
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
+):
+    """Debug endpoint to show current user data structure"""
+    # Remove sensitive information
+    debug_user = {k: v for k, v in current_user.items() if k not in ["password_hash", "password"]}
+    return {
+        "current_user": debug_user,
+        "user_keys": list(current_user.keys()),
+        "role": current_user.get("role"),
+        "branch_assignment": current_user.get("branch_assignment"),
+        "branch_id": current_user.get("branch_id")
+    }
+
+@router.get("/debug/delete-permissions/{user_id}")
+async def debug_delete_permissions(
+    user_id: str,
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
+):
+    """Debug endpoint to check delete permissions for a specific user"""
+    from utils.database import get_db
+
+    # Get the target user
+    user = await get_db().users.find_one({"id": user_id})
+    if not user:
+        return {"error": "User not found"}
+
+    # Get current user info
+    current_role = current_user.get("role")
+
+    result = {
+        "current_user_role": current_role,
+        "target_user_id": user_id,
+        "target_user_role": user.get("role"),
+        "target_user_branch_id": user.get("branch_id"),
+        "can_delete": False,
+        "reason": ""
+    }
+
+    if current_role == "branch_manager":
+        # Get branch manager's assigned branch ID
+        branch_assignment = current_user.get("branch_assignment")
+        direct_branch_id = current_user.get("branch_id")
+
+        manager_branch_id = None
+        if branch_assignment and branch_assignment.get("branch_id"):
+            manager_branch_id = branch_assignment["branch_id"]
+        elif direct_branch_id:
+            manager_branch_id = direct_branch_id
+
+        result["manager_branch_id"] = manager_branch_id
+        result["branch_assignment"] = branch_assignment
+        result["direct_branch_id"] = direct_branch_id
+
+        if not manager_branch_id:
+            result["reason"] = "No branch assigned to this manager"
+            return result
+
+        # Check if student belongs to branch manager's branch
+        user_branch_id = user.get("branch_id")
+        belongs_to_branch = False
+
+        # First check if user has direct branch_id assignment
+        if user_branch_id == manager_branch_id:
+            belongs_to_branch = True
+            result["match_method"] = "direct_branch_id"
+        else:
+            # Query enrollments collection for this student
+            student_enrollments = await get_db().enrollments.find({
+                "student_id": user_id,
+                "is_active": True
+            }).to_list(length=100)
+
+            result["student_enrollments"] = len(student_enrollments)
+            result["enrollment_branches"] = [e.get("branch_id") for e in student_enrollments]
+
+            # Check if any enrollment is for the branch manager's branch
+            for enrollment in student_enrollments:
+                if enrollment.get("branch_id") == manager_branch_id:
+                    belongs_to_branch = True
+                    result["match_method"] = "enrollment"
+                    break
+
+        result["can_delete"] = belongs_to_branch
+        if not belongs_to_branch:
+            if user_branch_id:
+                result["reason"] = f"Student is assigned to branch {user_branch_id}, but you manage branch {manager_branch_id}"
+            else:
+                result["reason"] = f"Student has no branch assignment or enrollments in your branch ({manager_branch_id})"
+    else:
+        result["can_delete"] = True
+        result["reason"] = "Super admin or coach admin can delete any user"
+
+    return result
+
 @router.delete("/{user_id}")
 async def delete_user(
     user_id: str,

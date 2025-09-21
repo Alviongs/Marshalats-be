@@ -658,28 +658,47 @@ class UserController:
         # If current user is a branch manager, ensure they can only delete students from their branch
         current_role = current_user.get("role")
         if current_role == "branch_manager":
+            # Get branch manager's assigned branch ID
             branch_assignment = current_user.get("branch_assignment")
-            if not branch_assignment or not branch_assignment.get("branch_id"):
+            direct_branch_id = current_user.get("branch_id")
+
+            manager_branch_id = None
+            if branch_assignment and branch_assignment.get("branch_id"):
+                manager_branch_id = branch_assignment["branch_id"]
+            elif direct_branch_id:
+                manager_branch_id = direct_branch_id
+
+            if not manager_branch_id:
                 raise HTTPException(status_code=403, detail="No branch assigned to this manager")
 
-            # For students, check if they have any enrollments in courses from this branch
-            # or if their branch_id matches (if they have one)
-            user_branch_id = user.get("branch_id")
-            user_enrollments = user.get("enrollments", [])
-
             # Check if student belongs to branch manager's branch
+            user_branch_id = user.get("branch_id")
             belongs_to_branch = False
-            if user_branch_id == branch_assignment["branch_id"]:
+
+            # First check if user has direct branch_id assignment
+            if user_branch_id == manager_branch_id:
                 belongs_to_branch = True
-            elif user_enrollments:
-                # Check enrollments for branch match
-                for enrollment in user_enrollments:
-                    if enrollment.get("branch_id") == branch_assignment["branch_id"]:
+            else:
+                # Query enrollments collection for this student
+                student_enrollments = await get_db().enrollments.find({
+                    "student_id": user_id,
+                    "is_active": True
+                }).to_list(length=100)
+
+                # Check if any enrollment is for the branch manager's branch
+                for enrollment in student_enrollments:
+                    if enrollment.get("branch_id") == manager_branch_id:
                         belongs_to_branch = True
                         break
 
             if not belongs_to_branch:
-                raise HTTPException(status_code=403, detail="You can only delete students from your assigned branch")
+                # Provide more detailed error message
+                error_msg = f"You can only delete students from your assigned branch. "
+                if user_branch_id:
+                    error_msg += f"Student is assigned to branch {user_branch_id}, but you manage branch {manager_branch_id}."
+                else:
+                    error_msg += f"Student has no branch assignment or enrollments in your branch ({manager_branch_id})."
+                raise HTTPException(status_code=403, detail=error_msg)
 
         # Delete user from database
         result = await get_db().users.delete_one({"id": user_id})
