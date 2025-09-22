@@ -38,7 +38,7 @@ async def get_coach_profile(
 async def create_coach(
     coach_data: CoachCreate,
     request: Request,
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
 ):
     """Create new coach with nested structure"""
     return await CoachController.create_coach(coach_data, request, current_user)

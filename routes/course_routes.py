@@ -12,7 +12,7 @@ router = APIRouter()
 @router.post("")
 async def create_course(
     course_data: CourseCreate,
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER]))
 ):
     return await CourseController.create_course(course_data, current_user)
 
