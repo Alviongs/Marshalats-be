@@ -122,7 +122,7 @@ class EnrollmentController:
     @staticmethod
     async def get_student_courses(
         student_id: str,
-        current_user: dict = Depends(get_current_active_user)
+        current_user: dict
     ):
         """Get student's enrolled courses"""
         # Check permission
