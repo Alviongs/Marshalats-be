@@ -573,24 +573,63 @@ class CoachController:
                     "is_active": True
                 })
 
+                # Get active enrollment count (students currently enrolled)
+                active_enrollment_count = await db.enrollments.count_documents({
+                    "course_id": course["id"],
+                    "is_active": True,
+                    "payment_status": {"$in": ["paid", "pending"]}
+                })
+
                 # Get branch information
                 branches = await db.branches.find({
                     "assignments.courses": course["id"],
                     "is_active": True
                 }).to_list(length=10)
 
+                # Get coach's branch information for filtering
+                coach_branch = await db.branches.find_one({"id": coach.get("branch_id")})
+
                 enhanced_course = serialize_doc(course)
+
+                # Map course data to match frontend expectations
                 enhanced_course.update({
-                    "name": course.get("title", course.get("name", "Unknown Course")),
-                    "enrolled_students": enrollment_count,
+                    # Core course information
+                    "course_name": course.get("title", course.get("name", "Unknown Course")),
+                    "course_code": course.get("code", "N/A"),
+                    "name": course.get("title", course.get("name", "Unknown Course")),  # For compatibility
+                    "description": course.get("description", "No description available"),
                     "difficulty_level": course.get("difficulty_level", "Beginner"),
+
+                    # Status and assignment information
+                    "status": "active" if course.get("settings", {}).get("active", True) else "inactive",
+                    "assigned_date": course.get("created_at", datetime.utcnow()).isoformat() if isinstance(course.get("created_at"), datetime) else str(course.get("created_at", "")),
+
+                    # Student and enrollment data
+                    "total_students": enrollment_count,
+                    "active_students": active_enrollment_count,
+                    "enrolled_students": enrollment_count,  # For compatibility
+
+                    # Branch information
+                    "branch_name": coach_branch.get("branch", {}).get("name", "Unknown Branch") if coach_branch else "Unknown Branch",
+                    "branch_id": coach.get("branch_id"),
                     "branch_assignments": [
                         {
                             "branch_id": branch["id"],
-                            "branch_name": branch["branch"]["name"]
+                            "branch_name": branch.get("branch", {}).get("name", "Unknown Branch")
                         }
                         for branch in branches
-                    ]
+                    ],
+
+                    # Category and additional info
+                    "category": course.get("category_id", "General"),
+                    "pricing_amount": course.get("pricing", {}).get("amount", 0),
+                    "currency": course.get("pricing", {}).get("currency", "INR"),
+                    "offers_certification": course.get("settings", {}).get("offers_certification", False),
+
+                    # Instructor information
+                    "instructor_id": course.get("instructor_id"),
+                    "is_instructor": course.get("instructor_id") == coach_id,
+                    "is_assigned": coach_id in coach.get("assignment_details", {}).get("courses", [])
                 })
                 enhanced_courses.append(enhanced_course)
 
