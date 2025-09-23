@@ -170,9 +170,31 @@ class PaymentController:
             user_result = await AuthController.register_user(user_create_data, None)
             student_id = user_result["user_id"]
 
-            # Create payment record
+            # Create enrollment record first to get enrollment_id
+            enrollment_id = user_result.get("enrollment_id")
+            if not enrollment_id:
+                from models.enrollment_models import Enrollment
+
+                enrollment = Enrollment(
+                    student_id=student_id,
+                    course_id=payment_data.course_id,
+                    branch_id=payment_data.branch_id,
+                    start_date=datetime.utcnow(),
+                    end_date=datetime.utcnow() + timedelta(days=365),  # Default 1 year
+                    fee_amount=payment_info.pricing.course_fee,
+                    admission_fee=payment_info.pricing.admission_fee,
+                    payment_status="paid",
+                    enrollment_date=datetime.utcnow(),
+                    is_active=True
+                )
+
+                await db.enrollments.insert_one(enrollment.dict())
+                enrollment_id = enrollment.id
+
+            # Create payment record with proper enrollment linking
             payment = Payment(
                 student_id=student_id,
+                enrollment_id=enrollment_id,  # Link payment to enrollment
                 amount=payment_info.pricing.total_amount,
                 payment_type=PaymentType.REGISTRATION_FEE,
                 payment_method=payment_data.payment_method,
@@ -194,27 +216,6 @@ class PaymentController:
             )
 
             await db.payments.insert_one(payment.dict())
-
-            # Create enrollment record if not already created by registration
-            enrollment_id = user_result.get("enrollment_id")
-            if not enrollment_id:
-                from models.enrollment_models import Enrollment
-
-                enrollment = Enrollment(
-                    student_id=student_id,
-                    course_id=payment_data.course_id,
-                    branch_id=payment_data.branch_id,
-                    start_date=datetime.utcnow(),
-                    end_date=datetime.utcnow() + timedelta(days=365),  # Default 1 year
-                    fee_amount=payment_info.pricing.course_fee,
-                    admission_fee=payment_info.pricing.admission_fee,
-                    payment_status="paid",
-                    enrollment_date=datetime.utcnow(),
-                    is_active=True
-                )
-
-                await db.enrollments.insert_one(enrollment.dict())
-                enrollment_id = enrollment.id
 
             # Create notification for superadmin
             student_data = {
@@ -336,7 +337,13 @@ class PaymentController:
         base_filter = {}
         if current_user:
             current_role = current_user.get("role")
-            if current_role == "branch_manager":
+            if current_role == "student":
+                # Students can only see their own payment stats
+                student_id = current_user.get("id")
+                if not student_id:
+                    raise HTTPException(status_code=403, detail="Student ID not found")
+                base_filter["student_id"] = student_id
+            elif current_role == "branch_manager":
                 # Branch managers can only see stats from their managed branches
                 branch_manager_id = current_user.get("id")
                 if not branch_manager_id:
@@ -427,11 +434,17 @@ class PaymentController:
             if payment_type and payment_type != "all":
                 filter_query["payment_type"] = payment_type
 
-            # Apply role-based filtering for branch managers
+            # Apply role-based filtering
             managed_branch_ids = None
             if current_user:
                 current_role = current_user.get("role")
-                if current_role == "branch_manager":
+                if current_role == "student":
+                    # Students can only see their own payments
+                    student_id = current_user.get("id")
+                    if not student_id:
+                        raise HTTPException(status_code=403, detail="Student ID not found")
+                    filter_query["student_id"] = student_id
+                elif current_role == "branch_manager":
                     # Branch managers can only see payments from their managed branches
                     branch_manager_id = current_user.get("id")
                     if not branch_manager_id:

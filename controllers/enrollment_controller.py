@@ -238,6 +238,10 @@ class EnrollmentController:
         if not current_user:
             raise HTTPException(status_code=401, detail="Authentication required")
 
+        db = get_db()
+        if db is None:
+            raise HTTPException(status_code=500, detail="Database connection not available")
+
         # Role-based access control
         current_role = current_user.get("role")
         if isinstance(current_role, str):
@@ -264,7 +268,12 @@ class EnrollmentController:
         if active_only:
             query["is_active"] = True
 
-        enrollments = await db.enrollments.find(query).to_list(100)
+        try:
+            enrollments = await db.enrollments.find(query).to_list(100)
+        except Exception as e:
+            print(f"Error fetching enrollments: {e}")
+            # Return empty result instead of crashing
+            return {"enrollments": [], "message": "No enrollments found"}
 
         # Enrich enrollment data with course and branch details
         for enrollment in enrollments:

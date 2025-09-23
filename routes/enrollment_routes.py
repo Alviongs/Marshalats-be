@@ -45,7 +45,7 @@ async def student_enroll_in_course(
 async def get_student_enrollments(
     student_id: str,
     active_only: bool = True,
-    current_user: dict = Depends(get_current_active_user)
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER, UserRole.STUDENT]))
 ):
-    """Get all enrollments for a specific student - for dashboard edit page"""
+    """Get all enrollments for a specific student - Students can only view their own enrollments"""
     return await EnrollmentController.get_student_enrollments(student_id, current_user, active_only)
