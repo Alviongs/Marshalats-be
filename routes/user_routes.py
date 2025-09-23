@@ -11,7 +11,7 @@ router = APIRouter()
 async def create_user(
     user_data: UserCreate,
     request: Request,
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER, UserRole.COACH]))
 ):
     return await UserController.create_user(user_data, request, current_user)
 

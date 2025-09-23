@@ -12,7 +12,7 @@ router = APIRouter()
 @router.post("")
 async def create_enrollment(
     enrollment_data: EnrollmentCreate,
-    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER, UserRole.COACH]))
 ):
     return await EnrollmentController.create_enrollment(enrollment_data, current_user)
 
