@@ -23,16 +23,7 @@ async def reset_password(reset_password_data: CoachResetPassword):
     """Reset coach password using a token"""
     return await CoachController.reset_password(reset_password_data.token, reset_password_data.new_password)
 
-@router.get("/me")
-async def get_coach_profile(
-    current_user: dict = Depends(require_role_unified([UserRole.COACH]))
-):
-    """Get current coach's profile"""
-    # Remove sensitive information
-    coach_profile = {k: v for k, v in current_user.items() if k not in ["hashed_password", "password"]}
-    return {
-        "coach": coach_profile
-    }
+
 
 @router.post("")
 async def create_coach(

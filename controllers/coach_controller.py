@@ -391,11 +391,10 @@ class CoachController:
         if coach_update.personal_info:
             update_data["personal_info"] = coach_update.personal_info.dict()
 
-            # Update full_name if first_name or last_name changed
-            first_name = coach_update.personal_info.first_name
-            last_name = coach_update.personal_info.last_name
-            if first_name and last_name:
-                update_data["full_name"] = f"{first_name} {last_name}"
+            # Update derived fields - individual name fields and full_name
+            update_data["first_name"] = coach_update.personal_info.first_name
+            update_data["last_name"] = coach_update.personal_info.last_name
+            update_data["full_name"] = f"{coach_update.personal_info.first_name} {coach_update.personal_info.last_name}".strip()
 
         if coach_update.contact_info:
             # Check for email conflicts if email is being changed
