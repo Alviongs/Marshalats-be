@@ -367,6 +367,96 @@ class CoachController:
         return {"message": "Coach updated successfully"}
 
     @staticmethod
+    async def update_coach_profile(
+        coach_id: str,
+        coach_update: CoachUpdate,
+        request: Request,
+        current_coach: dict
+    ):
+        """Update coach's own profile - coaches can update their own information"""
+        db = get_db()
+
+        # Verify the coach is updating their own profile
+        if current_coach["id"] != coach_id:
+            raise HTTPException(status_code=403, detail="You can only update your own profile")
+
+        # Check if coach exists
+        existing_coach = await db.coaches.find_one({"id": coach_id})
+        if not existing_coach:
+            raise HTTPException(status_code=404, detail="Coach not found")
+
+        update_data = {}
+
+        # Update personal info
+        if coach_update.personal_info:
+            update_data["personal_info"] = coach_update.personal_info.dict()
+
+            # Update full_name if first_name or last_name changed
+            first_name = coach_update.personal_info.first_name
+            last_name = coach_update.personal_info.last_name
+            if first_name and last_name:
+                update_data["full_name"] = f"{first_name} {last_name}"
+
+        if coach_update.contact_info:
+            # Check for email conflicts if email is being changed
+            if coach_update.contact_info.email != existing_coach.get("email"):
+                email_conflict = await db.coaches.find_one({
+                    "email": coach_update.contact_info.email,
+                    "id": {"$ne": coach_id}
+                })
+                if email_conflict:
+                    raise HTTPException(status_code=400, detail="Email already exists")
+
+            # Update contact info (exclude password from nested structure)
+            update_data["contact_info"] = {
+                "email": coach_update.contact_info.email,
+                "country_code": coach_update.contact_info.country_code,
+                "phone": coach_update.contact_info.phone
+            }
+            update_data["email"] = coach_update.contact_info.email
+            update_data["phone"] = f"{coach_update.contact_info.country_code}{coach_update.contact_info.phone}"
+
+            # Handle password update if provided
+            if coach_update.contact_info.password:
+                update_data["password_hash"] = hash_password(coach_update.contact_info.password)
+
+        if coach_update.address_info:
+            update_data["address_info"] = coach_update.address_info.dict()
+
+        if coach_update.professional_info:
+            update_data["professional_info"] = coach_update.professional_info.dict()
+
+        if coach_update.areas_of_expertise:
+            update_data["areas_of_expertise"] = coach_update.areas_of_expertise
+
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No update data provided")
+
+        update_data["updated_at"] = datetime.utcnow()
+
+        # Update coach
+        result = await db.coaches.update_one(
+            {"id": coach_id},
+            {"$set": update_data}
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Coach not found")
+
+        # Log activity
+        await log_activity(
+            request=request,
+            action="coach_profile_update",
+            user_id=current_coach["id"],
+            user_name=current_coach.get("full_name", "Coach"),
+            details={
+                "updated_fields": list(update_data.keys())
+            }
+        )
+
+        return {"message": "Profile updated successfully"}
+
+    @staticmethod
     async def deactivate_coach(
         coach_id: str,
         request: Request,

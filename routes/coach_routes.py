@@ -54,6 +54,22 @@ async def get_coaches(
     """Get coaches with filtering options"""
     return await CoachController.get_coaches(skip, limit, active_only, area_of_expertise, current_user)
 
+@router.get("/me")
+async def get_my_profile(
+    current_user: dict = Depends(require_role_unified([UserRole.COACH]))
+):
+    """Get current coach's profile"""
+    return await CoachController.get_coach_by_id(current_user["id"], current_user)
+
+@router.put("/me")
+async def update_my_profile(
+    coach_update: CoachUpdate,
+    request: Request,
+    current_user: dict = Depends(require_role_unified([UserRole.COACH]))
+):
+    """Update current coach's profile"""
+    return await CoachController.update_coach_profile(current_user["id"], coach_update, request, current_user)
+
 @router.get("/{coach_id}")
 async def get_coach_by_id(
     coach_id: str,
