@@ -7,7 +7,7 @@ import os
 import logging
 import uuid
 
-from models.user_models import UserCreate, UserLogin, ForgotPassword, ResetPassword, UserUpdate, BaseUser, UserRole
+from models.user_models import UserCreate, UserLogin, ForgotPassword, ResetPassword, UserUpdate, BaseUser, UserRole, StudentProfileUpdate, StudentProfileResponse, StudentAddress, StudentEmergencyContact, StudentMedicalInfo
 from utils.auth import hash_password, verify_password, create_access_token, get_current_active_user, SECRET_KEY, ALGORITHM
 from utils.database import get_db
 from utils.helpers import serialize_doc, log_activity, send_sms
@@ -322,3 +322,132 @@ class AuthController:
                 "name": "User",
                 "email": email
             }
+
+    @staticmethod
+    async def get_student_profile(current_user: dict):
+        """Get current student's profile information"""
+        if current_user.get("role") != "student":
+            raise HTTPException(status_code=403, detail="Only students can access this endpoint")
+
+        db = get_db()
+
+        # Get fresh user data from database
+        user = await db.users.find_one({"id": current_user["id"]})
+        if not user:
+            raise HTTPException(status_code=404, detail="Student not found")
+
+        # Get enrollment information
+        enrollments = await db.enrollments.find({
+            "student_id": current_user["id"],
+            "is_active": True
+        }).to_list(100)
+
+        # Enrich enrollment data with course and branch details
+        enriched_enrollments = []
+        for enrollment in enrollments:
+            # Get course details
+            course = await db.courses.find_one({"id": enrollment["course_id"]})
+            # Get branch details
+            branch = await db.branches.find_one({"id": enrollment["branch_id"]})
+
+            enriched_enrollment = {
+                "id": enrollment["id"],
+                "course_id": enrollment["course_id"],
+                "course_name": course.get("title", "Unknown Course") if course else "Unknown Course",
+                "branch_id": enrollment["branch_id"],
+                "branch_name": branch.get("branch", {}).get("name", "Unknown Branch") if branch else "Unknown Branch",
+                "enrollment_date": enrollment.get("enrollment_date"),
+                "start_date": enrollment.get("start_date"),
+                "end_date": enrollment.get("end_date"),
+                "payment_status": enrollment.get("payment_status", "pending"),
+                "is_active": enrollment.get("is_active", True)
+            }
+            enriched_enrollments.append(enriched_enrollment)
+
+        # Prepare profile response
+        profile_data = {
+            "id": user["id"],
+            "email": user["email"],
+            "phone": user["phone"],
+            "first_name": user["first_name"],
+            "last_name": user["last_name"],
+            "full_name": user["full_name"],
+            "date_of_birth": user.get("date_of_birth"),
+            "gender": user.get("gender"),
+            "address": user.get("address"),
+            "emergency_contact": user.get("emergency_contact"),
+            "medical_info": user.get("medical_info"),
+            "is_active": user["is_active"],
+            "created_at": user["created_at"],
+            "updated_at": user["updated_at"],
+            "enrollments": enriched_enrollments
+        }
+
+        return {
+            "message": "Profile retrieved successfully",
+            "profile": serialize_doc(profile_data)
+        }
+
+    @staticmethod
+    async def update_student_profile(profile_update: StudentProfileUpdate, current_user: dict):
+        """Update current student's profile information"""
+        if current_user.get("role") != "student":
+            raise HTTPException(status_code=403, detail="Only students can access this endpoint")
+
+        db = get_db()
+
+        # Prepare update data
+        update_data = {}
+
+        # Handle basic fields
+        if profile_update.first_name is not None:
+            update_data["first_name"] = profile_update.first_name
+        if profile_update.last_name is not None:
+            update_data["last_name"] = profile_update.last_name
+        if profile_update.phone is not None:
+            update_data["phone"] = profile_update.phone
+        if profile_update.date_of_birth is not None:
+            update_data["date_of_birth"] = profile_update.date_of_birth.isoformat()
+        if profile_update.gender is not None:
+            update_data["gender"] = profile_update.gender
+
+        # Handle nested objects
+        if profile_update.address is not None:
+            update_data["address"] = profile_update.address.dict()
+        if profile_update.emergency_contact is not None:
+            update_data["emergency_contact"] = profile_update.emergency_contact.dict()
+        if profile_update.medical_info is not None:
+            update_data["medical_info"] = profile_update.medical_info.dict()
+
+        # Update full_name if first_name or last_name changed
+        if profile_update.first_name is not None or profile_update.last_name is not None:
+            # Get current user data to construct full name
+            current_first = profile_update.first_name if profile_update.first_name is not None else current_user.get("first_name", "")
+            current_last = profile_update.last_name if profile_update.last_name is not None else current_user.get("last_name", "")
+            update_data["full_name"] = f"{current_first} {current_last}".strip()
+
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No update data provided")
+
+        # Add updated timestamp
+        update_data["updated_at"] = datetime.utcnow()
+
+        # Update user in database
+        result = await db.users.update_one(
+            {"id": current_user["id"]},
+            {"$set": update_data}
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Student not found")
+
+        # Log the profile update
+        await log_activity(
+            request=None,  # No request object available in this context
+            action="student_profile_update",
+            user_id=current_user["id"],
+            user_name=current_user.get("full_name", "Student"),
+            details={"updated_fields": list(update_data.keys())}
+        )
+
+        return {"message": "Profile updated successfully"}

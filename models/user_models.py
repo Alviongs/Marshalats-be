@@ -86,3 +86,50 @@ class UserUpdate(BaseModel):
     course_id: Optional[str] = None
     course_duration: Optional[str] = None
     location_id: Optional[str] = None
+
+# Student Profile Models
+class StudentAddress(BaseModel):
+    street: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    postal_code: Optional[str] = None
+    country: Optional[str] = "India"
+
+class StudentEmergencyContact(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    relationship: Optional[str] = None
+
+class StudentMedicalInfo(BaseModel):
+    allergies: Optional[str] = None
+    medications: Optional[str] = None
+    conditions: Optional[str] = None
+    blood_type: Optional[str] = None
+
+class StudentProfileResponse(BaseModel):
+    id: str
+    email: EmailStr
+    phone: str
+    first_name: str
+    last_name: str
+    full_name: str
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
+    address: Optional[StudentAddress] = None
+    emergency_contact: Optional[StudentEmergencyContact] = None
+    medical_info: Optional[StudentMedicalInfo] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    # Enrollment information
+    enrollments: Optional[list] = []
+
+class StudentProfileUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
+    address: Optional[StudentAddress] = None
+    emergency_contact: Optional[StudentEmergencyContact] = None
+    medical_info: Optional[StudentMedicalInfo] = None

@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, Request, status
 from controllers.auth_controller import AuthController
-from models.user_models import UserCreate, UserLogin, ForgotPassword, ResetPassword, UserUpdate
+from models.user_models import UserCreate, UserLogin, ForgotPassword, ResetPassword, UserUpdate, StudentProfileUpdate
 from pydantic import BaseModel, EmailStr
+from utils.auth import require_role, get_current_active_user
+from models.user_models import UserRole
 
 router = APIRouter()
 
@@ -32,6 +34,20 @@ async def reset_password(reset_password_data: ResetPassword):
 @router.get("/me")
 async def get_current_user_info(current_user: dict = Depends(AuthController.get_current_user_info)):
     return current_user
+
+# Student Profile Endpoints
+@router.get("/profile")
+async def get_student_profile(current_user: dict = Depends(require_role([UserRole.STUDENT]))):
+    """Get current student's profile information"""
+    return await AuthController.get_student_profile(current_user)
+
+@router.put("/profile")
+async def update_student_profile(
+    profile_update: StudentProfileUpdate,
+    current_user: dict = Depends(require_role([UserRole.STUDENT]))
+):
+    """Update current student's profile information"""
+    return await AuthController.update_student_profile(profile_update, current_user)
 
 @router.put("/profile")
 async def update_profile(user_update: UserUpdate, current_user: dict = Depends(AuthController.update_profile)):
