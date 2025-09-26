@@ -50,9 +50,27 @@ async def get_current_user_or_superadmin(credentials: HTTPAuthorizationCredentia
             branch_manager = await db.branch_managers.find_one({"id": user_id})
             if branch_manager is None:
                 raise HTTPException(status_code=401, detail="Branch manager not found")
+
             # Convert branch manager to user-like format for role checking
             manager_data = serialize_doc(branch_manager)
             manager_data["role"] = "branch_manager"  # Set role for UserRole enum
+
+            # Find all branches managed by this branch manager
+            managed_branches = await db.branches.find({"manager_id": user_id, "is_active": True}).to_list(length=None)
+            managed_branch_ids = [branch["id"] for branch in managed_branches]
+
+            # Add managed branches to the manager data for payment filtering
+            manager_data["managed_branches"] = managed_branch_ids
+
+            # Fallback: If no branches found by manager_id, try the branch_assignment approach
+            if not managed_branch_ids:
+                branch_assignment = manager_data.get("branch_assignment")
+                if branch_assignment and branch_assignment.get("branch_id"):
+                    # Try to find the branch by ID from branch_assignment
+                    fallback_branch = await db.branches.find_one({"id": branch_assignment["branch_id"], "is_active": True})
+                    if fallback_branch:
+                        manager_data["managed_branches"] = [fallback_branch["id"]]
+
             return manager_data
 
         # Check if it's a coach token

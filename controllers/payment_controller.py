@@ -559,14 +559,17 @@ class PaymentController:
                         raise HTTPException(status_code=400, detail="Invalid end_date format")
                 filter_query["payment_date"] = date_filter
 
-            # Apply role-based filtering
+            # Store role-based filtering info for pipeline
+            role_based_branches = None
+            additional_branch_filter = None
+
             if current_user:
                 user_role = current_user.get("role")
                 if user_role == UserRole.BRANCH_MANAGER.value:
                     # Branch managers can only see payments from their managed branches
                     managed_branches = current_user.get("managed_branches", [])
                     if managed_branches:
-                        filter_query["branch_details.branch_id"] = {"$in": managed_branches}
+                        role_based_branches = managed_branches
                     else:
                         # If no managed branches, return empty result
                         filter_query["_id"] = {"$exists": False}
@@ -574,7 +577,7 @@ class PaymentController:
                     # Coach admins can see payments from their assigned branches
                     assigned_branches = current_user.get("assigned_branches", [])
                     if assigned_branches:
-                        filter_query["branch_details.branch_id"] = {"$in": assigned_branches}
+                        role_based_branches = assigned_branches
                     else:
                         # If no assigned branches, return empty result
                         filter_query["_id"] = {"$exists": False}
@@ -584,7 +587,7 @@ class PaymentController:
 
             # Additional branch filter if specified
             if branch_id and branch_id != "all":
-                filter_query["branch_details.branch_id"] = branch_id
+                additional_branch_filter = branch_id
 
             db = get_db()
             if db is None:
@@ -603,6 +606,53 @@ class PaymentController:
                 },
                 {"$unwind": {"path": "$student_info", "preserveNullAndEmptyArrays": True}},
                 {
+                    "$lookup": {
+                        "from": "enrollments",
+                        "localField": "enrollment_id",
+                        "foreignField": "id",
+                        "as": "enrollment_info"
+                    }
+                },
+                {"$unwind": {"path": "$enrollment_info", "preserveNullAndEmptyArrays": True}},
+                {
+                    "$lookup": {
+                        "from": "courses",
+                        "localField": "enrollment_info.course_id",
+                        "foreignField": "id",
+                        "as": "course_info"
+                    }
+                },
+                {"$unwind": {"path": "$course_info", "preserveNullAndEmptyArrays": True}},
+                {
+                    "$lookup": {
+                        "from": "branches",
+                        "localField": "enrollment_info.branch_id",
+                        "foreignField": "id",
+                        "as": "branch_info"
+                    }
+                },
+                {"$unwind": {"path": "$branch_info", "preserveNullAndEmptyArrays": True}},
+            ]
+
+            # Add branch filtering after lookups if needed
+            branch_filter_conditions = []
+            if role_based_branches:
+                branch_filter_conditions.extend([
+                    {"branch_details.branch_id": {"$in": role_based_branches}},
+                    {"enrollment_info.branch_id": {"$in": role_based_branches}}
+                ])
+            if additional_branch_filter:
+                branch_filter_conditions.extend([
+                    {"branch_details.branch_id": additional_branch_filter},
+                    {"enrollment_info.branch_id": additional_branch_filter}
+                ])
+
+            if branch_filter_conditions:
+                pipeline.append({"$match": {"$or": branch_filter_conditions}})
+
+            # Add projection stage
+            pipeline.extend([
+                {
                     "$project": {
                         "student_name": {"$ifNull": ["$student_info.full_name", {"$concat": ["$student_info.first_name", " ", "$student_info.last_name"]}]},
                         "student_email": "$student_info.email",
@@ -614,14 +664,24 @@ class PaymentController:
                         "transaction_id": 1,
                         "payment_date": {"$dateToString": {"format": "%Y-%m-%d %H:%M:%S", "date": "$payment_date"}},
                         "due_date": {"$dateToString": {"format": "%Y-%m-%d", "date": "$due_date"}},
-                        "course_name": {"$ifNull": ["$course_details.course_name", "N/A"]},
-                        "branch_name": {"$ifNull": ["$branch_details.branch_name", "N/A"]},
+                        "course_name": {
+                            "$ifNull": [
+                                "$course_details.course_name",
+                                {"$ifNull": ["$course_info.name", "N/A"]}
+                            ]
+                        },
+                        "branch_name": {
+                            "$ifNull": [
+                                "$branch_details.branch_name",
+                                {"$ifNull": ["$branch_info.branch.name", "N/A"]}
+                            ]
+                        },
                         "notes": {"$ifNull": ["$notes", ""]},
                         "created_at": {"$dateToString": {"format": "%Y-%m-%d %H:%M:%S", "date": "$created_at"}}
                     }
                 },
                 {"$sort": {"payment_date": -1, "created_at": -1}}
-            ]
+            ])
 
             payments = await db.payments.aggregate(pipeline).to_list(None)  # Get all matching records
 
