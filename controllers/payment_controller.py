@@ -469,6 +469,14 @@ class PaymentController:
             # Get payments with student information
             pipeline = [
                 {"$match": filter_query},
+                # Add deduplication by payment ID at database level
+                {
+                    "$group": {
+                        "_id": "$id",  # Group by payment ID to remove duplicates
+                        "doc": {"$first": "$$ROOT"}  # Keep the first occurrence
+                    }
+                },
+                {"$replaceRoot": {"newRoot": "$doc"}},  # Replace root with the original document
                 {
                     "$lookup": {
                         "from": "users",
@@ -501,9 +509,29 @@ class PaymentController:
 
             payments = await db.payments.aggregate(pipeline).to_list(limit)
 
-            # Convert MongoDB documents to JSON-serializable format
+            # Convert MongoDB documents to JSON-serializable format and deduplicate
             serialized_payments = []
+            seen_payment_ids = set()
+            seen_transaction_ids = set()
+
             for payment in payments:
+                # Skip duplicate payments based on payment ID
+                payment_id = payment.get("id")
+                transaction_id = payment.get("transaction_id")
+
+                if payment_id in seen_payment_ids:
+                    print(f"⚠️ Skipping duplicate payment by ID: {payment_id}")
+                    continue
+
+                # Also check for duplicate transaction IDs (which is what user is seeing)
+                if transaction_id and transaction_id in seen_transaction_ids:
+                    print(f"⚠️ Skipping duplicate payment by transaction ID: {transaction_id}")
+                    continue
+
+                seen_payment_ids.add(payment_id)
+                if transaction_id:
+                    seen_transaction_ids.add(transaction_id)
+
                 # Convert ObjectId and datetime objects to strings
                 serialized_payment = {}
                 for key, value in payment.items():
@@ -514,6 +542,9 @@ class PaymentController:
                     else:
                         serialized_payment[key] = value
                 serialized_payments.append(serialized_payment)
+
+            print(f"🔍 Payment query debug - Student ID: {filter_query.get('student_id', 'N/A')}")
+            print(f"🔍 Total payments found: {len(payments)}, After deduplication: {len(serialized_payments)}")
 
             return {"payments": serialized_payments}
 
