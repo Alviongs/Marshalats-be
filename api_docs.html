@@ -140,7 +140,7 @@
         <h2>📖 Overview</h2>
         <div class="base-url">
             <strong>Base URLs:</strong><br>
-            Development: <code>http://31.97.224.169:8003</code><br>
+            Development: <code>http://localhost:8003</code><br>
             Production: <code>https://edumanage-44.preview.dev.com</code>
         </div>
         
@@ -177,7 +177,7 @@
             </ul>
             
             <h4>cURL Example:</h4>
-            <pre>curl -X GET "http://31.97.224.169:8003/users/students/details" \
+            <pre>curl -X GET "http://localhost:8003/users/students/details" \
   -H "Authorization: Bearer &lt;your_token&gt;"</pre>
         </div>
     </div>
@@ -199,7 +199,7 @@
             </ul>
             
             <h4>cURL Example:</h4>
-            <pre>curl -X GET "http://31.97.224.169:8003/courses/public/all?active_only=true&limit=50"</pre>
+            <pre>curl -X GET "http://localhost:8003/courses/public/all?active_only=true&limit=50"</pre>
         </div>
         
         <div class="endpoint">
@@ -221,7 +221,7 @@
             </ul>
             
             <h4>cURL Example:</h4>
-            <pre>curl -X GET "http://31.97.224.169:8003/courses/public/by-category/category-uuid-123?difficulty_level=Advanced"</pre>
+            <pre>curl -X GET "http://localhost:8003/courses/public/by-category/category-uuid-123?difficulty_level=Advanced"</pre>
         </div>
         
         <div class="endpoint">
@@ -243,7 +243,7 @@
             </ul>
             
             <h4>cURL Example:</h4>
-            <pre>curl -X GET "http://31.97.224.169:8003/courses/public/by-location/location-uuid-123?include_durations=true"</pre>
+            <pre>curl -X GET "http://localhost:8003/courses/public/by-location/location-uuid-123?include_durations=true"</pre>
         </div>
     </div>
 
@@ -264,7 +264,7 @@
             </ul>
             
             <h4>cURL Example:</h4>
-            <pre>curl -X GET "http://31.97.224.169:8003/categories/public/details?include_courses=true"</pre>
+            <pre>curl -X GET "http://localhost:8003/categories/public/details?include_courses=true"</pre>
         </div>
         
         <div class="endpoint">
@@ -281,7 +281,7 @@
             </ul>
             
             <h4>cURL Example:</h4>
-            <pre>curl -X GET "http://31.97.224.169:8003/categories/public/with-courses-and-durations?include_locations=true"</pre>
+            <pre>curl -X GET "http://localhost:8003/categories/public/with-courses-and-durations?include_locations=true"</pre>
         </div>
         
         <div class="endpoint">
@@ -298,7 +298,7 @@
             </ul>
             
             <h4>cURL Example:</h4>
-            <pre>curl -X GET "http://31.97.224.169:8003/categories/public/location-hierarchy?category_id=category-uuid-123"</pre>
+            <pre>curl -X GET "http://localhost:8003/categories/public/location-hierarchy?category_id=category-uuid-123"</pre>
         </div>
     </div>
 
@@ -312,7 +312,7 @@
             <p>Get all available course durations with pricing multipliers.</p>
             
             <h4>cURL Example:</h4>
-            <pre>curl -X GET "http://31.97.224.169:8003/durations/public/all"</pre>
+            <pre>curl -X GET "http://localhost:8003/durations/public/all"</pre>
         </div>
         
         <div class="endpoint">
@@ -332,7 +332,7 @@
             </ul>
             
             <h4>cURL Example:</h4>
-            <pre>curl -X GET "http://31.97.224.169:8003/durations/public/by-course/course-uuid-456?include_pricing=true"</pre>
+            <pre>curl -X GET "http://localhost:8003/durations/public/by-course/course-uuid-456?include_pricing=true"</pre>
         </div>
         
         <div class="endpoint">
@@ -349,7 +349,7 @@
             </ul>
             
             <h4>cURL Example:</h4>
-            <pre>curl -X GET "http://31.97.224.169:8003/durations/public/by-location-course?location_id=loc-123&course_id=course-456"</pre>
+            <pre>curl -X GET "http://localhost:8003/durations/public/by-location-course?location_id=loc-123&course_id=course-456"</pre>
         </div>
     </div>
 
@@ -370,7 +370,7 @@
             </ul>
             
             <h4>cURL Example:</h4>
-            <pre>curl -X GET "http://31.97.224.169:8003/locations/public/details?include_branches=true&include_courses=true"</pre>
+            <pre>curl -X GET "http://localhost:8003/locations/public/details?include_branches=true&include_courses=true"</pre>
         </div>
         
         <div class="endpoint">
@@ -391,7 +391,7 @@
             </ul>
             
             <h4>cURL Example:</h4>
-            <pre>curl -X GET "http://31.97.224.169:8003/branches/public/by-location/location-uuid-123?include_courses=true"</pre>
+            <pre>curl -X GET "http://localhost:8003/branches/public/by-location/location-uuid-123?include_courses=true"</pre>
         </div>
     </div>
 
@@ -400,46 +400,46 @@
         
         <h3>1. Category Selection Workflow</h3>
         <pre># Step 1: Get all categories with courses and durations
-curl -X GET "http://31.97.224.169:8003/categories/public/with-courses-and-durations"
+curl -X GET "http://localhost:8003/categories/public/with-courses-and-durations"
 
 # Step 2: Get complete hierarchy for a specific category
-curl -X GET "http://31.97.224.169:8003/categories/public/location-hierarchy?category_id=category-uuid-123"
+curl -X GET "http://localhost:8003/categories/public/location-hierarchy?category_id=category-uuid-123"
 
 # Step 3: Get courses by category
-curl -X GET "http://31.97.224.169:8003/courses/public/by-category/category-uuid-123"</pre>
+curl -X GET "http://localhost:8003/courses/public/by-category/category-uuid-123"</pre>
         
         <h3>2. Location Selection Workflow</h3>
         <pre># Step 1: Get all locations with branches
-curl -X GET "http://31.97.224.169:8003/locations/public/details?include_branches=true"
+curl -X GET "http://localhost:8003/locations/public/details?include_branches=true"
 
 # Step 2: Get branches by location
-curl -X GET "http://31.97.224.169:8003/branches/public/by-location/location-uuid-123"
+curl -X GET "http://localhost:8003/branches/public/by-location/location-uuid-123"
 
 # Step 3: Get courses by location
-curl -X GET "http://31.97.224.169:8003/courses/public/by-location/location-uuid-123"</pre>
+curl -X GET "http://localhost:8003/courses/public/by-location/location-uuid-123"</pre>
         
         <h3>3. Course Selection Workflow</h3>
         <pre># Step 1: Get courses by category
-curl -X GET "http://31.97.224.169:8003/courses/public/by-category/category-uuid-123"
+curl -X GET "http://localhost:8003/courses/public/by-category/category-uuid-123"
 
 # Step 2: Get durations for specific course
-curl -X GET "http://31.97.224.169:8003/durations/public/by-course/course-uuid-456"
+curl -X GET "http://localhost:8003/durations/public/by-course/course-uuid-456"
 
 # Step 3: Get durations by location and course
-curl -X GET "http://31.97.224.169:8003/durations/public/by-location-course?location_id=loc-123&course_id=course-456"</pre>
+curl -X GET "http://localhost:8003/durations/public/by-location-course?location_id=loc-123&course_id=course-456"</pre>
     </div>
 
     <div class="quick-links">
         <div class="quick-link">
             <h3>🚀 FastAPI Docs</h3>
             <p>Interactive API documentation</p>
-            <a href="http://31.97.224.169:8003/docs" target="_blank">Open Swagger UI</a>
+            <a href="http://localhost:8003/docs" target="_blank">Open Swagger UI</a>
         </div>
         
         <div class="quick-link">
             <h3>📋 ReDoc</h3>
             <p>Alternative documentation view</p>
-            <a href="http://31.97.224.169:8003/redoc" target="_blank">Open ReDoc</a>
+            <a href="http://localhost:8003/redoc" target="_blank">Open ReDoc</a>
         </div>
         
         <div class="quick-link">

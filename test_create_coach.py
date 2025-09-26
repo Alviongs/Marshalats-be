@@ -12,7 +12,7 @@ credentials = [
 
 for cred in credentials:
     print(f'Trying {cred["email"]}...')
-    login_response = requests.post('http://31.97.224.169:8003/api/superadmin/login', json=cred)
+    login_response = requests.post('http://localhost:8003/api/superadmin/login', json=cred)
     
     if login_response.status_code == 200:
         token = login_response.json()['data']['token']
@@ -50,7 +50,7 @@ for cred in credentials:
             'branch_id': 'c9ed7bb7-c31e-4b0f-9edf-760b41de9628'
         }
         
-        create_response = requests.post('http://31.97.224.169:8003/api/coaches',
+        create_response = requests.post('http://localhost:8003/api/coaches',
             headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
             json=coach_data)
         
@@ -63,7 +63,7 @@ for cred in credentials:
         
         # Now test getting coaches
         print('\nTesting coaches API...')
-        coaches_response = requests.get('http://31.97.224.169:8003/api/coaches?active_only=true&limit=10',
+        coaches_response = requests.get('http://localhost:8003/api/coaches?active_only=true&limit=10',
             headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'})
 
         print(f'Get coaches response: {coaches_response.status_code}')
@@ -78,7 +78,7 @@ for cred in credentials:
 
         # Test branch managers
         print('\nTesting branch managers API...')
-        managers_response = requests.get('http://31.97.224.169:8003/api/branch-managers',
+        managers_response = requests.get('http://localhost:8003/api/branch-managers',
             headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'})
 
         print(f'Get branch managers response: {managers_response.status_code}')
@@ -129,7 +129,7 @@ for cred in credentials:
             'branch_id': 'c9ed7bb7-c31e-4b0f-9edf-760b41de9628'
         }
 
-        create_manager_response = requests.post('http://31.97.224.169:8003/api/branch-managers',
+        create_manager_response = requests.post('http://localhost:8003/api/branch-managers',
             headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
             json=new_manager_data)
 
@@ -150,7 +150,7 @@ for cred in credentials:
 
         for bm_cred in branch_manager_credentials:
             print(f'\nTrying branch manager login: {bm_cred["email"]}...')
-            bm_login_response = requests.post('http://31.97.224.169:8003/api/branch-managers/login', json=bm_cred)
+            bm_login_response = requests.post('http://localhost:8003/api/branch-managers/login', json=bm_cred)
 
             if bm_login_response.status_code == 200:
                 bm_token = bm_login_response.json()['access_token']
@@ -158,7 +158,7 @@ for cred in credentials:
 
                 # Test /api/branch-managers/me
                 print('\nTesting /api/branch-managers/me...')
-                me_response = requests.get('http://31.97.224.169:8003/api/branch-managers/me',
+                me_response = requests.get('http://localhost:8003/api/branch-managers/me',
                     headers={'Authorization': f'Bearer {bm_token}', 'Content-Type': 'application/json'})
 
                 print(f'Branch manager profile response: {me_response.status_code}')
@@ -170,7 +170,7 @@ for cred in credentials:
 
                 # Test coaches API with branch manager token
                 print('\nTesting coaches API with branch manager token...')
-                bm_coaches_response = requests.get('http://31.97.224.169:8003/api/coaches?active_only=true&limit=100',
+                bm_coaches_response = requests.get('http://localhost:8003/api/coaches?active_only=true&limit=100',
                     headers={'Authorization': f'Bearer {bm_token}', 'Content-Type': 'application/json'})
 
                 print(f'Branch manager coaches response: {bm_coaches_response.status_code}')
@@ -185,7 +185,7 @@ for cred in credentials:
 
                 # Test students API with branch manager token
                 print('\nTesting students API with branch manager token...')
-                bm_students_response = requests.get('http://31.97.224.169:8003/api/users/students/details',
+                bm_students_response = requests.get('http://localhost:8003/api/users/students/details',
                     headers={'Authorization': f'Bearer {bm_token}', 'Content-Type': 'application/json'})
 
                 print(f'Branch manager students response: {bm_students_response.status_code}')
@@ -206,7 +206,7 @@ for cred in credentials:
                 branch_assignment = profile_data.get("branch_manager", {}).get("branch_assignment")
                 branch_id = branch_assignment.get("branch_id") if branch_assignment else None
                 if branch_id:
-                    bm_courses_response = requests.get(f'http://31.97.224.169:8003/api/courses/by-branch/{branch_id}',
+                    bm_courses_response = requests.get(f'http://localhost:8003/api/courses/by-branch/{branch_id}',
                         headers={'Authorization': f'Bearer {bm_token}', 'Content-Type': 'application/json'})
 
                     print(f'Branch manager courses response: {bm_courses_response.status_code}')

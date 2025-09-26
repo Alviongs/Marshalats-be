@@ -15,7 +15,7 @@ The API is built using FastAPI with MongoDB as the database, providing a modern,
 
 ## Base URLs
 ```
-Development: http://31.97.224.169:8003/api
+Development: http://localhost:8003/api
 Production: https://edumanage-44.preview.dev.com/api
 ```
 
@@ -120,12 +120,12 @@ Specialized functionality:
 ### 1. Authentication
 ```bash
 # Regular user login
-curl -X POST "http://31.97.224.169:8003/api/auth/login" \
+curl -X POST "http://localhost:8003/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com", "password": "password"}'
 
 # Superadmin login
-curl -X POST "http://31.97.224.169:8003/api/superadmin/login" \
+curl -X POST "http://localhost:8003/api/superadmin/login" \
   -H "Content-Type: application/json" \
   -d '{"email": "admin@example.com", "password": "password"}'
 ```
@@ -133,24 +133,24 @@ curl -X POST "http://31.97.224.169:8003/api/superadmin/login" \
 ### 2. Using Tokens
 ```bash
 # Include token in subsequent requests
-curl -X GET "http://31.97.224.169:8003/api/users" \
+curl -X GET "http://localhost:8003/api/users" \
   -H "Authorization: Bearer <your_token_here>"
 ```
 
 ### 3. Common Operations
 ```bash
 # Create a user
-curl -X POST "http://31.97.224.169:8003/api/users" \
+curl -X POST "http://localhost:8003/api/users" \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"full_name": "John Doe", "email": "john@example.com", "role": "student"}'
 
 # Get courses
-curl -X GET "http://31.97.224.169:8003/api/courses?active_only=true" \
+curl -X GET "http://localhost:8003/api/courses?active_only=true" \
   -H "Authorization: Bearer <token>"
 
 # Enroll in course
-curl -X POST "http://31.97.224.169:8003/api/enrollments/students/enroll" \
+curl -X POST "http://localhost:8003/api/enrollments/students/enroll" \
   -H "Authorization: Bearer <student_token>" \
   -H "Content-Type: application/json" \
   -d '{"course_id": "course-uuid", "branch_id": "branch-uuid"}'
@@ -225,19 +225,19 @@ Many endpoints support filtering by relevant fields:
 ## Development and Testing
 
 ### Interactive Documentation
-- **Swagger UI:** `http://31.97.224.169:8003/docs`
-- **ReDoc:** `http://31.97.224.169:8003/redoc`
+- **Swagger UI:** `http://localhost:8003/docs`
+- **ReDoc:** `http://localhost:8003/redoc`
 
 ### Health Check
 ```bash
-curl -X GET "http://31.97.224.169:8003/health"
+curl -X GET "http://localhost:8003/health"
 ```
 
 ### Environment Setup
 1. Install dependencies: `pip install -r requirements.txt`
 2. Set environment variables (MongoDB URL, JWT secret)
 3. Start server: `python server.py`
-4. Access documentation: `http://31.97.224.169:8003/docs`
+4. Access documentation: `http://localhost:8003/docs`
 
 ## Support and Maintenance
 

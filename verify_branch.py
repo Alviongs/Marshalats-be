@@ -3,12 +3,12 @@
 import requests
 
 # Login and get token
-token_response = requests.post('http://31.97.224.169:8003/api/auth/login', 
+token_response = requests.post('http://localhost:8003/api/auth/login', 
                               json={'email': 'superadmin@test.com', 'password': 'SuperAdmin123!'})
 token = token_response.json()['access_token']
 
 # Get all branches
-branches_response = requests.get('http://31.97.224.169:8003/api/branches', 
+branches_response = requests.get('http://localhost:8003/api/branches', 
                                 headers={'Authorization': f'Bearer {token}'})
 branches = branches_response.json()['branches']
 
