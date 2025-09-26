@@ -64,3 +64,18 @@ async def get_payments(
 ):
     """Get payments with filtering - Students can only see their own payments"""
     return await PaymentController.get_payments(skip, limit, status, payment_type, current_user)
+
+@router.get("/export")
+async def export_payments(
+    status: Optional[str] = Query(None),
+    payment_type: Optional[str] = Query(None),
+    branch_id: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    format: str = Query("csv", regex="^(csv|excel)$"),
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
+):
+    """Export payment reports"""
+    return await PaymentController.export_payments(
+        status, payment_type, branch_id, start_date, end_date, format, current_user
+    )

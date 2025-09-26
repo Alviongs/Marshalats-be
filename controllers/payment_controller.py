@@ -2,6 +2,9 @@ from fastapi import HTTPException, Depends, status
 from datetime import datetime, timedelta
 import uuid
 import secrets
+import csv
+import io
+from typing import Optional
 
 from models.payment_models import PaymentStatus, PaymentType, PaymentMethod, Payment, RegistrationPaymentCreate, RegistrationPaymentResponse
 from models.student_models import StudentPaymentCreate, CoursePaymentInfo
@@ -519,3 +522,141 @@ class PaymentController:
             import traceback
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+    @staticmethod
+    async def export_payments(
+        status: Optional[str] = None,
+        payment_type: Optional[str] = None,
+        branch_id: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        format: str = "csv",
+        current_user: dict = None
+    ):
+        """Export payment reports"""
+        try:
+            # Build filter query
+            filter_query = {}
+            if status and status != "all":
+                filter_query["payment_status"] = status
+            if payment_type and payment_type != "all":
+                filter_query["payment_type"] = payment_type
+
+            # Add date range filter if provided
+            if start_date or end_date:
+                date_filter = {}
+                if start_date:
+                    try:
+                        start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                        date_filter["$gte"] = start_dt
+                    except ValueError:
+                        raise HTTPException(status_code=400, detail="Invalid start_date format")
+                if end_date:
+                    try:
+                        end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                        date_filter["$lte"] = end_dt
+                    except ValueError:
+                        raise HTTPException(status_code=400, detail="Invalid end_date format")
+                filter_query["payment_date"] = date_filter
+
+            # Apply role-based filtering
+            if current_user:
+                user_role = current_user.get("role")
+                if user_role == UserRole.BRANCH_MANAGER.value:
+                    # Branch managers can only see payments from their managed branches
+                    managed_branches = current_user.get("managed_branches", [])
+                    if managed_branches:
+                        filter_query["branch_details.branch_id"] = {"$in": managed_branches}
+                    else:
+                        # If no managed branches, return empty result
+                        filter_query["_id"] = {"$exists": False}
+                elif user_role == UserRole.COACH_ADMIN.value:
+                    # Coach admins can see payments from their assigned branches
+                    assigned_branches = current_user.get("assigned_branches", [])
+                    if assigned_branches:
+                        filter_query["branch_details.branch_id"] = {"$in": assigned_branches}
+                    else:
+                        # If no assigned branches, return empty result
+                        filter_query["_id"] = {"$exists": False}
+                elif user_role == UserRole.STUDENT.value:
+                    # Students can only see their own payments
+                    filter_query["student_id"] = current_user.get("user_id")
+
+            # Additional branch filter if specified
+            if branch_id and branch_id != "all":
+                filter_query["branch_details.branch_id"] = branch_id
+
+            db = get_db()
+            if db is None:
+                raise HTTPException(status_code=500, detail="Database connection not available")
+
+            # Get payments with student information for export
+            pipeline = [
+                {"$match": filter_query},
+                {
+                    "$lookup": {
+                        "from": "users",
+                        "localField": "student_id",
+                        "foreignField": "id",
+                        "as": "student_info"
+                    }
+                },
+                {"$unwind": {"path": "$student_info", "preserveNullAndEmptyArrays": True}},
+                {
+                    "$project": {
+                        "student_name": {"$ifNull": ["$student_info.full_name", {"$concat": ["$student_info.first_name", " ", "$student_info.last_name"]}]},
+                        "student_email": "$student_info.email",
+                        "student_phone": "$student_info.phone",
+                        "amount": 1,
+                        "payment_type": 1,
+                        "payment_method": 1,
+                        "payment_status": 1,
+                        "transaction_id": 1,
+                        "payment_date": {"$dateToString": {"format": "%Y-%m-%d %H:%M:%S", "date": "$payment_date"}},
+                        "due_date": {"$dateToString": {"format": "%Y-%m-%d", "date": "$due_date"}},
+                        "course_name": {"$ifNull": ["$course_details.course_name", "N/A"]},
+                        "branch_name": {"$ifNull": ["$branch_details.branch_name", "N/A"]},
+                        "notes": {"$ifNull": ["$notes", ""]},
+                        "created_at": {"$dateToString": {"format": "%Y-%m-%d %H:%M:%S", "date": "$created_at"}}
+                    }
+                },
+                {"$sort": {"payment_date": -1, "created_at": -1}}
+            ]
+
+            payments = await db.payments.aggregate(pipeline).to_list(None)  # Get all matching records
+
+            if format == "csv":
+                # Create CSV content
+                output = io.StringIO()
+                fieldnames = [
+                    'student_name', 'student_email', 'student_phone', 'amount', 'payment_type',
+                    'payment_method', 'payment_status', 'transaction_id', 'payment_date',
+                    'due_date', 'course_name', 'branch_name', 'notes', 'created_at'
+                ]
+                writer = csv.DictWriter(output, fieldnames=fieldnames)
+                writer.writeheader()
+
+                # Convert payments to CSV-friendly format
+                for payment in payments:
+                    csv_row = {}
+                    for field in fieldnames:
+                        value = payment.get(field, '')
+                        # Handle None values and convert to string
+                        csv_row[field] = str(value) if value is not None else ''
+                    writer.writerow(csv_row)
+
+                return {
+                    "content": output.getvalue(),
+                    "filename": f"payment_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    "content_type": "text/csv"
+                }
+            else:
+                raise HTTPException(status_code=400, detail="Unsupported export format")
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"Error in export_payments: {e}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"Failed to export payment reports: {str(e)}")
