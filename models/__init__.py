@@ -13,7 +13,11 @@ from .duration_models import Duration, DurationCreate, DurationUpdate, DurationR
 from .location_models import Location, LocationCreate, LocationUpdate, LocationWithBranches, LocationResponse
 from .enrollment_models import PaymentStatus, Enrollment, EnrollmentCreate
 from .payment_models import Payment, PaymentProof, PaymentCreate, PaymentStatus, PaymentType, PaymentMethod, RegistrationPaymentCreate, RegistrationPaymentResponse
-from .attendance_models import AttendanceMethod, Attendance, AttendanceCreate, BiometricAttendance
+from .attendance_models import (
+    AttendanceMethod, Attendance, AttendanceCreate, BiometricAttendance,
+    CoachAttendance, CoachAttendanceCreate, BranchManagerAttendance, BranchManagerAttendanceCreate,
+    AttendanceStatus, AttendanceMarkRequest
+)
 from .product_models import Product, ProductCreate, ProductUpdate, ProductPurchase, ProductPurchaseCreate, RestockRequest
 from .notification_models import NotificationType, NotificationTemplate, NotificationTemplateCreate, TriggerNotification, NotificationLog, BroadcastAnnouncement, ClassReminder, PaymentNotification, PaymentNotificationCreate, MessageNotification, MessageNotificationCreate
 from .holiday_models import Holiday, HolidayCreate
@@ -65,6 +69,8 @@ __all__ = [
     
     # Attendance models
     'AttendanceMethod', 'Attendance', 'AttendanceCreate', 'BiometricAttendance',
+    'CoachAttendance', 'CoachAttendanceCreate', 'BranchManagerAttendance', 'BranchManagerAttendanceCreate',
+    'AttendanceStatus', 'AttendanceMarkRequest',
     
     # Product models
     'Product', 'ProductCreate', 'ProductUpdate', 'ProductPurchase', 'ProductPurchaseCreate', 'RestockRequest',

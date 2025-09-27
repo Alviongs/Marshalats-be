@@ -23,7 +23,7 @@ async def test_coach_authorization():
     
     # Database connection
     MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
-    DB_NAME = os.environ.get('DB_NAME', 'student_management_db')
+    DB_NAME = os.environ.get('DB_NAME', 'marshalats')
     client = AsyncIOMotorClient(MONGO_URL)
     db = client[DB_NAME]
     

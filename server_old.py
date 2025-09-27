@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
     from utils import database
     mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
     client = AsyncIOMotorClient(mongo_url)
-    database.db = client[os.environ.get('DB_NAME', 'student_management_db')]
+    database.db = client[os.environ.get('DB_NAME', 'marshalats')]
     print("Database connection opened.")
     yield
     client.close()
@@ -80,7 +80,7 @@ async def lifespan(app: FastAPI):
     global db
     mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
     client = AsyncIOMotorClient(mongo_url)
-    db = client[os.environ.get('DB_NAME', 'student_management_db')]
+    db = client[os.environ.get('DB_NAME', 'marshalats')]
     print("Database connection opened.")
     yield
     client.close()

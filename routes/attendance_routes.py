@@ -2,7 +2,10 @@ from fastapi import APIRouter, Depends, Query
 from typing import Optional
 from datetime import datetime
 from controllers.attendance_controller import AttendanceController
-from models.attendance_models import AttendanceCreate, BiometricAttendance
+from models.attendance_models import (
+    AttendanceCreate, BiometricAttendance, CoachAttendanceCreate, BranchManagerAttendanceCreate,
+    AttendanceMarkRequest
+)
 from models.user_models import UserRole
 from utils.unified_auth import require_role_unified, get_current_user_or_superadmin
 
@@ -86,3 +89,44 @@ async def export_attendance_reports(
     return await AttendanceController.export_attendance_reports(
         student_id, coach_id, course_id, branch_id, start_date, end_date, format, current_user
     )
+
+@router.get("/coach/{coach_id}/students")
+async def get_coach_students(
+    coach_id: str,
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH, UserRole.BRANCH_MANAGER]))
+):
+    """Get students assigned to a specific coach"""
+    return await AttendanceController.get_coach_students(coach_id, current_user)
+
+@router.get("/coach/{coach_id}/students/attendance")
+async def get_coach_students_attendance(
+    coach_id: str,
+    date: str = Query(..., description="Date in ISO format (YYYY-MM-DD)"),
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH, UserRole.BRANCH_MANAGER]))
+):
+    """Get students assigned to a specific coach with their attendance for a specific date"""
+    return await AttendanceController.get_coach_students_attendance(coach_id, date, current_user)
+
+@router.post("/coach/mark")
+async def mark_coach_attendance(
+    attendance_data: CoachAttendanceCreate,
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER]))
+):
+    """Mark attendance for a coach"""
+    return await AttendanceController.mark_coach_attendance(attendance_data, current_user)
+
+@router.post("/branch-manager/mark")
+async def mark_branch_manager_attendance(
+    attendance_data: BranchManagerAttendanceCreate,
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN]))
+):
+    """Mark attendance for a branch manager"""
+    return await AttendanceController.mark_branch_manager_attendance(attendance_data, current_user)
+
+@router.post("/mark")
+async def mark_comprehensive_attendance(
+    attendance_request: AttendanceMarkRequest,
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH, UserRole.BRANCH_MANAGER]))
+):
+    """Mark attendance for any user type (student, coach, branch_manager)"""
+    return await AttendanceController.mark_comprehensive_attendance(attendance_request, current_user)

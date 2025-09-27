@@ -21,7 +21,7 @@ async def test_dashboard_api():
     # Connect to database
     mongo_url = os.getenv("MONGO_URL", "mongodb://localhost:27017")
     client = AsyncIOMotorClient(mongo_url)
-    db_name = os.getenv("DB_NAME", "student_management_db")
+    db_name = os.getenv("DB_NAME", "marshalats")
     database = client.get_database(db_name)
     
     # Initialize database connection

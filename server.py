@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
     # Startup
     mongo_url = os.getenv("MONGO_URL", "mongodb://localhost:27017")
     app.mongodb_client = AsyncIOMotorClient(mongo_url)
-    db_name = os.getenv("DB_NAME", "student_management_db")
+    db_name = os.getenv("DB_NAME", "marshalats")
     app.mongodb = app.mongodb_client.get_database(db_name)
     
     # Initialize the database connection in utils
