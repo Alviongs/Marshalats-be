@@ -20,6 +20,7 @@ from .dashboard_routes import router as dashboard_router
 from .settings_routes import router as settings_router
 from .reports_routes import router as reports_router
 from .attendance_routes import router as attendance_router
+from .message_routes import router as message_router
 
 __all__ = [
     'auth_router',
@@ -40,5 +41,7 @@ __all__ = [
     'email_router',
     'dashboard_router',
     'settings_router',
-    'reports_router'
+    'reports_router',
+    'attendance_router',
+    'message_router'
 ]

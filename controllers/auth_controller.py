@@ -180,6 +180,11 @@ class AuthController:
             details={"email": user["email"]}
         )
 
+        # Extract branch_id for easier access
+        branch_id = user.get("branch_id")
+        if not branch_id and user.get("branch"):
+            branch_id = user["branch"].get("branch_id")
+
         return {"access_token": access_token, "token_type": "bearer", "user": {
             "id": user["id"],
             "email": user["email"],
@@ -189,6 +194,7 @@ class AuthController:
             "full_name": user["full_name"],
             "date_of_birth": user.get("date_of_birth"),
             "gender": user.get("gender"),
+            "branch_id": branch_id,  # Include branch_id for easier access
             "course": user.get("course"),  # Return nested course object directly
             "branch": user.get("branch")   # Return nested branch object directly
         }}

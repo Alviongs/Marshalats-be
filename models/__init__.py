@@ -15,7 +15,7 @@ from .enrollment_models import PaymentStatus, Enrollment, EnrollmentCreate
 from .payment_models import Payment, PaymentProof, PaymentCreate, PaymentStatus, PaymentType, PaymentMethod, RegistrationPaymentCreate, RegistrationPaymentResponse
 from .attendance_models import AttendanceMethod, Attendance, AttendanceCreate, BiometricAttendance
 from .product_models import Product, ProductCreate, ProductUpdate, ProductPurchase, ProductPurchaseCreate, RestockRequest
-from .notification_models import NotificationType, NotificationTemplate, NotificationTemplateCreate, TriggerNotification, NotificationLog, BroadcastAnnouncement, ClassReminder, PaymentNotification, PaymentNotificationCreate
+from .notification_models import NotificationType, NotificationTemplate, NotificationTemplateCreate, TriggerNotification, NotificationLog, BroadcastAnnouncement, ClassReminder, PaymentNotification, PaymentNotificationCreate, MessageNotification, MessageNotificationCreate
 from .holiday_models import Holiday, HolidayCreate
 from .complaint_models import ComplaintStatus, Complaint, ComplaintCreate, ComplaintUpdate
 from .rating_models import CoachRating, CoachRatingCreate
@@ -30,6 +30,11 @@ from .settings_models import (
     SystemConfiguration, EmailConfiguration, NotificationSettings, SecuritySettings, BackupSettings,
     SystemSettings, SystemSettingsCreate, SystemSettingsUpdate, SystemSettingsResponse,
     SystemSettingsFlatCreate, SystemSettingsFlatResponse
+)
+from .message_models import (
+    MessageStatus, MessagePriority, UserType, MessageParticipant, MessageAttachment,
+    Message, MessageThread, MessageCreate, MessageUpdate, MessageResponse, ConversationResponse,
+    MessageStats, BulkMessageCreate, MessageSearchQuery
 )
 
 __all__ = [
@@ -65,7 +70,7 @@ __all__ = [
     'Product', 'ProductCreate', 'ProductUpdate', 'ProductPurchase', 'ProductPurchaseCreate', 'RestockRequest',
     
     # Notification models
-    'NotificationType', 'NotificationTemplate', 'NotificationTemplateCreate', 'TriggerNotification', 'NotificationLog', 'BroadcastAnnouncement', 'ClassReminder', 'PaymentNotification', 'PaymentNotificationCreate',
+    'NotificationType', 'NotificationTemplate', 'NotificationTemplateCreate', 'TriggerNotification', 'NotificationLog', 'BroadcastAnnouncement', 'ClassReminder', 'PaymentNotification', 'PaymentNotificationCreate', 'MessageNotification', 'MessageNotificationCreate',
     
     # Holiday models
     'Holiday', 'HolidayCreate',
@@ -96,5 +101,10 @@ __all__ = [
     
     # Student models
     'StudentEnrollmentCreate', 'StudentPaymentCreate', 'StudentRegistrationPayment',
-    'PaymentCalculation', 'CoursePaymentInfo'
+    'PaymentCalculation', 'CoursePaymentInfo',
+
+    # Message models
+    'MessageStatus', 'MessagePriority', 'UserType', 'MessageParticipant', 'MessageAttachment',
+    'Message', 'MessageThread', 'MessageCreate', 'MessageUpdate', 'MessageResponse',
+    'ConversationResponse', 'MessageStats', 'BulkMessageCreate', 'MessageSearchQuery'
 ]

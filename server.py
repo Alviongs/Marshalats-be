@@ -27,7 +27,8 @@ from routes import (
     dashboard_router,
     settings_router,
     reports_router,
-    attendance_router
+    attendance_router,
+    message_router
 )
 from routes.superadmin_routes import router as superadmin_router
 from routes.branches_with_courses_routes import router as branches_with_courses_router
@@ -95,6 +96,7 @@ app.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"]
 app.include_router(settings_router, prefix="/api/settings", tags=["Settings"])
 app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
 app.include_router(attendance_router, prefix="/api/attendance", tags=["Attendance"])
+app.include_router(message_router, prefix="/api/messages", tags=["Messages"])
 app.include_router(branches_with_courses_router, prefix="/api", tags=["Branches with Courses"])
 
 @app.get("/")

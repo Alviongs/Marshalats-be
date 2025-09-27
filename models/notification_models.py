@@ -74,3 +74,36 @@ class PaymentNotificationCreate(BaseModel):
     course_name: Optional[str] = None
     branch_name: Optional[str] = None
     priority: str = "normal"
+
+# Message notification models
+class MessageNotification(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    message_id: str
+    thread_id: str
+    recipient_id: str
+    recipient_type: str  # "student", "coach", "branch_manager", "superadmin"
+    sender_id: str
+    sender_name: str
+    sender_type: str
+    notification_type: str = "new_message"  # "new_message", "message_reply"
+    title: str
+    message: str
+    subject: str
+    is_read: bool = False
+    priority: str = "normal"  # "low", "normal", "high", "urgent"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    read_at: Optional[datetime] = None
+
+class MessageNotificationCreate(BaseModel):
+    message_id: str
+    thread_id: str
+    recipient_id: str
+    recipient_type: str
+    sender_id: str
+    sender_name: str
+    sender_type: str
+    notification_type: str = "new_message"
+    title: str
+    message: str
+    subject: str
+    priority: str = "normal"
