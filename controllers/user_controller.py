@@ -523,6 +523,17 @@ class UserController:
         if not update_data:
             raise HTTPException(status_code=400, detail="No update data provided")
 
+        # Auto-generate full_name if first_name or last_name is being updated
+        if "first_name" in update_data or "last_name" in update_data:
+            # Get current values from database if not provided in update
+            current_first_name = update_data.get("first_name", target_user.get("first_name", ""))
+            current_last_name = update_data.get("last_name", target_user.get("last_name", ""))
+
+            # Generate full_name from first_name and last_name
+            full_name = f"{current_first_name} {current_last_name}".strip()
+            update_data["full_name"] = full_name
+            print(f"🔄 Auto-generated full_name: '{full_name}' from first_name: '{current_first_name}', last_name: '{current_last_name}'")
+
         update_data["updated_at"] = datetime.utcnow()
 
         # Handle enrollment updates if course/branch data is being changed

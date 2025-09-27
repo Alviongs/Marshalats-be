@@ -283,14 +283,26 @@ class AuthController:
     async def update_profile(user_update: UserUpdate, current_user: dict = Depends(get_current_active_user)):
         """Update user profile"""
         update_data = {k: v for k, v in user_update.dict().items() if v is not None}
+
+        # Auto-generate full_name if first_name or last_name is being updated
+        if user_update.first_name is not None or user_update.last_name is not None:
+            # Get current values from current_user if not provided in update
+            current_first_name = user_update.first_name if user_update.first_name is not None else current_user.get("first_name", "")
+            current_last_name = user_update.last_name if user_update.last_name is not None else current_user.get("last_name", "")
+
+            # Generate full_name from first_name and last_name
+            full_name = f"{current_first_name} {current_last_name}".strip()
+            update_data["full_name"] = full_name
+            print(f"🔄 Auto-generated full_name: '{full_name}' from first_name: '{current_first_name}', last_name: '{current_last_name}'")
+
         update_data["updated_at"] = datetime.utcnow()
-        
+
         # Ensure date_of_birth and gender are included in the update
         if user_update.date_of_birth:
             update_data["date_of_birth"] = user_update.date_of_birth
         if user_update.gender:
             update_data["gender"] = user_update.gender
-        
+
         db = get_db()
         await db.users.update_one(
             {"id": current_user["id"]},

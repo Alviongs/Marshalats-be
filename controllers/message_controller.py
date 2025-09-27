@@ -601,31 +601,76 @@ class MessageController:
                 print(f"🔍 DEBUG: Coach full data: {current_user}")
 
                 if user_branch_id:
-                    # Get students in the same branch
-                    students = await db.users.find({
+                    # Get students in the same branch - check both direct branch_id and enrollments
+                    # Method 1: Direct branch_id assignment
+                    students_direct = await db.users.find({
                         "role": "student",
                         "branch_id": user_branch_id,
                         "is_active": True
                     }).to_list(length=None)
 
-                    print(f"🔍 DEBUG: Found {len(students)} students in coach's branch ({user_branch_id})")
+                    print(f"🔍 DEBUG: Found {len(students_direct)} students with direct branch_id ({user_branch_id})")
+
+                    # Method 2: Students through enrollments
+                    enrollments = await db.enrollments.find({
+                        "branch_id": user_branch_id,
+                        "is_active": True
+                    }).to_list(length=None)
+
+                    student_ids_from_enrollments = list(set([enrollment["student_id"] for enrollment in enrollments]))
+                    print(f"🔍 DEBUG: Found {len(student_ids_from_enrollments)} unique student IDs from enrollments in branch ({user_branch_id})")
+
+                    students_from_enrollments = []
+                    if student_ids_from_enrollments:
+                        students_from_enrollments = await db.users.find({
+                            "id": {"$in": student_ids_from_enrollments},
+                            "role": "student",
+                            "is_active": True
+                        }).to_list(length=None)
+
+                    print(f"🔍 DEBUG: Found {len(students_from_enrollments)} students from enrollments")
+
+                    # Combine and deduplicate students
+                    all_students = {}
+                    for student in students_direct:
+                        all_students[student["id"]] = student
+                    for student in students_from_enrollments:
+                        all_students[student["id"]] = student
+
+                    students = list(all_students.values())
+                    print(f"🔍 DEBUG: Total unique students in coach's branch: {len(students)}")
+
                     for student in students:
                         recipients.append({
                             "id": student["id"],
                             "name": student["full_name"],
                             "email": student["email"],
                             "type": "student",
-                            "branch_id": student.get("branch_id")
+                            "branch_id": student.get("branch_id") or user_branch_id
                         })
-                        print(f"🔍 DEBUG: Added student: {student['full_name']} (Branch: {student.get('branch_id')})")
+                        print(f"🔍 DEBUG: Added student: {student['full_name']} (Branch: {student.get('branch_id') or user_branch_id})")
 
                     # Get branch manager
                     branch = await db.branches.find_one({"id": user_branch_id})
                     if branch and branch.get("manager_id"):
+                        manager_id = branch["manager_id"]
+                        print(f"🔍 DEBUG: Looking for branch manager with ID: {manager_id}")
+
+                        # Try branch_managers collection first
                         branch_manager = await db.branch_managers.find_one({
-                            "id": branch["manager_id"],
+                            "id": manager_id,
                             "is_active": True
                         })
+
+                        # If not found, try users collection (for legacy data)
+                        if not branch_manager:
+                            branch_manager = await db.users.find_one({
+                                "id": manager_id,
+                                "role": "branch_manager",
+                                "is_active": True
+                            })
+                            print(f"🔍 DEBUG: Checked users collection for branch manager: {'Found' if branch_manager else 'Not found'}")
+
                         if branch_manager:
                             recipients.append({
                                 "id": branch_manager["id"],
@@ -636,9 +681,13 @@ class MessageController:
                             })
                             print(f"🔍 DEBUG: Added branch manager: {branch_manager['full_name']}")
                         else:
-                            print(f"🔍 DEBUG: No branch manager found for branch {user_branch_id}")
+                            print(f"🔍 DEBUG: No branch manager found in either collection for ID: {manager_id}")
                     else:
                         print(f"🔍 DEBUG: Branch not found or no manager_id for branch {user_branch_id}")
+                        if branch:
+                            print(f"🔍 DEBUG: Branch data: {branch}")
+                        else:
+                            print(f"🔍 DEBUG: No branch found with ID: {user_branch_id}")
                 else:
                     print(f"⚠️ DEBUG: Coach has no branch_id assigned")
                     # Fallback: If coach has no branch_id, try to find it from coach record
@@ -649,31 +698,70 @@ class MessageController:
                             fallback_branch_id = coach_record["branch_id"]
                             print(f"🔍 DEBUG: Found fallback branch_id from coach record: {fallback_branch_id}")
 
-                            # Get students in the fallback branch
-                            students = await db.users.find({
+                            # Get students in the fallback branch - check both direct branch_id and enrollments
+                            # Method 1: Direct branch_id assignment
+                            students_direct = await db.users.find({
                                 "role": "student",
                                 "branch_id": fallback_branch_id,
                                 "is_active": True
                             }).to_list(length=None)
 
+                            # Method 2: Students through enrollments
+                            enrollments = await db.enrollments.find({
+                                "branch_id": fallback_branch_id,
+                                "is_active": True
+                            }).to_list(length=None)
+
+                            student_ids_from_enrollments = list(set([enrollment["student_id"] for enrollment in enrollments]))
+                            students_from_enrollments = []
+                            if student_ids_from_enrollments:
+                                students_from_enrollments = await db.users.find({
+                                    "id": {"$in": student_ids_from_enrollments},
+                                    "role": "student",
+                                    "is_active": True
+                                }).to_list(length=None)
+
+                            # Combine and deduplicate students
+                            all_students = {}
+                            for student in students_direct:
+                                all_students[student["id"]] = student
+                            for student in students_from_enrollments:
+                                all_students[student["id"]] = student
+
+                            students = list(all_students.values())
                             print(f"🔍 DEBUG: Found {len(students)} students in coach's fallback branch ({fallback_branch_id})")
+
                             for student in students:
                                 recipients.append({
                                     "id": student["id"],
                                     "name": student["full_name"],
                                     "email": student["email"],
                                     "type": "student",
-                                    "branch_id": student.get("branch_id")
+                                    "branch_id": student.get("branch_id") or fallback_branch_id
                                 })
-                                print(f"🔍 DEBUG: Added student (fallback): {student['full_name']} (Branch: {student.get('branch_id')})")
+                                print(f"🔍 DEBUG: Added student (fallback): {student['full_name']} (Branch: {student.get('branch_id') or fallback_branch_id})")
 
                             # Get branch manager for fallback branch
                             branch = await db.branches.find_one({"id": fallback_branch_id})
                             if branch and branch.get("manager_id"):
+                                manager_id = branch["manager_id"]
+                                print(f"🔍 DEBUG: Looking for fallback branch manager with ID: {manager_id}")
+
+                                # Try branch_managers collection first
                                 branch_manager = await db.branch_managers.find_one({
-                                    "id": branch["manager_id"],
+                                    "id": manager_id,
                                     "is_active": True
                                 })
+
+                                # If not found, try users collection (for legacy data)
+                                if not branch_manager:
+                                    branch_manager = await db.users.find_one({
+                                        "id": manager_id,
+                                        "role": "branch_manager",
+                                        "is_active": True
+                                    })
+                                    print(f"🔍 DEBUG: Checked users collection for fallback branch manager: {'Found' if branch_manager else 'Not found'}")
+
                                 if branch_manager:
                                     recipients.append({
                                         "id": branch_manager["id"],
@@ -683,6 +771,8 @@ class MessageController:
                                         "branch_id": fallback_branch_id
                                     })
                                     print(f"🔍 DEBUG: Added branch manager (fallback): {branch_manager['full_name']}")
+                                else:
+                                    print(f"🔍 DEBUG: No fallback branch manager found in either collection for ID: {manager_id}")
                         else:
                             print(f"⚠️ DEBUG: No branch_id found in coach record either")
 
@@ -964,7 +1054,32 @@ class MessageController:
                     # For new messages, enforce strict branch validation
                     print(f"🔍 DEBUG: This is a new message - enforcing strict validation")
                     if user_branch_id:
-                        if recipient.get("branch_id") != user_branch_id:
+                        # Check if student has direct branch_id assignment
+                        student_direct_branch = recipient.get("branch_id")
+                        student_can_message = False
+
+                        if student_direct_branch == user_branch_id:
+                            student_can_message = True
+                            print(f"✅ DEBUG: Student has direct branch_id match: {student_direct_branch}")
+                        else:
+                            # Check if student is enrolled in coach's branch through enrollments
+                            student_id = recipient.get("id")
+                            if student_id:
+                                enrollments = await db.enrollments.find({
+                                    "student_id": student_id,
+                                    "branch_id": user_branch_id,
+                                    "is_active": True
+                                }).to_list(length=None)
+
+                                if enrollments:
+                                    student_can_message = True
+                                    print(f"✅ DEBUG: Student has enrollment in coach's branch: {len(enrollments)} enrollments")
+                                else:
+                                    print(f"❌ DEBUG: Student has no enrollment in coach's branch")
+                                    print(f"   Student direct branch: {student_direct_branch}")
+                                    print(f"   Coach branch: {user_branch_id}")
+
+                        if not student_can_message:
                             raise HTTPException(status_code=403, detail="Cannot message students from other branches")
                     else:
                         # If coach has no branch_id, try to get it from coach record
@@ -973,7 +1088,31 @@ class MessageController:
                             coach_record = await db.coaches.find_one({"id": coach_id})
                             if coach_record and coach_record.get("branch_id"):
                                 coach_branch_id = coach_record["branch_id"]
-                                if recipient.get("branch_id") != coach_branch_id:
+
+                                # Check if student has direct branch_id assignment or enrollment
+                                student_direct_branch = recipient.get("branch_id")
+                                student_can_message = False
+
+                                if student_direct_branch == coach_branch_id:
+                                    student_can_message = True
+                                    print(f"✅ DEBUG: Student has direct branch_id match with coach: {student_direct_branch}")
+                                else:
+                                    # Check if student is enrolled in coach's branch through enrollments
+                                    student_id = recipient.get("id")
+                                    if student_id:
+                                        enrollments = await db.enrollments.find({
+                                            "student_id": student_id,
+                                            "branch_id": coach_branch_id,
+                                            "is_active": True
+                                        }).to_list(length=None)
+
+                                        if enrollments:
+                                            student_can_message = True
+                                            print(f"✅ DEBUG: Student has enrollment in coach's fallback branch: {len(enrollments)} enrollments")
+                                        else:
+                                            print(f"❌ DEBUG: Student has no enrollment in coach's fallback branch")
+
+                                if not student_can_message:
                                     raise HTTPException(status_code=403, detail="Cannot message students from other branches")
                             else:
                                 # If no branch assignment found, allow messaging (for legacy data)
@@ -1011,10 +1150,52 @@ class MessageController:
                 }).to_list(length=None)
 
                 managed_branch_ids = [branch["id"] for branch in managed_branches]
-                recipient_branch_id = recipient.get("branch_id")
+                print(f"🔍 DEBUG MESSAGING: Branch manager {current_user['id']} manages branches: {managed_branch_ids}")
 
-                if recipient_branch_id not in managed_branch_ids:
-                    raise HTTPException(status_code=403, detail="Cannot message users from branches you don't manage")
+                # For students, check both direct branch_id and enrollments
+                if recipient_type == UserType.STUDENT:
+                    recipient_branch_id = recipient.get("branch_id")
+                    can_message = False
+
+                    # Method 1: Check direct branch_id assignment
+                    if recipient_branch_id and recipient_branch_id in managed_branch_ids:
+                        can_message = True
+                        print(f"✅ DEBUG MESSAGING: Student has direct branch_id in managed branches: {recipient_branch_id}")
+                    else:
+                        # Method 2: Check through enrollments
+                        student_id = recipient.get("id")
+                        if student_id:
+                            student_enrollments = await db.enrollments.find({
+                                "student_id": student_id,
+                                "is_active": True
+                            }).to_list(length=None)
+
+                            print(f"🔍 DEBUG MESSAGING: Found {len(student_enrollments)} active enrollments for student {student_id}")
+
+                            for enrollment in student_enrollments:
+                                enrollment_branch_id = enrollment.get("branch_id")
+                                if enrollment_branch_id in managed_branch_ids:
+                                    can_message = True
+                                    print(f"✅ DEBUG MESSAGING: Student enrolled in managed branch: {enrollment_branch_id}")
+                                    break
+
+                    if not can_message:
+                        print(f"❌ DEBUG MESSAGING: Student not in any managed branches")
+                        print(f"   Student direct branch_id: {recipient_branch_id}")
+                        print(f"   Managed branch IDs: {managed_branch_ids}")
+                        raise HTTPException(status_code=403, detail="Cannot message users from branches you don't manage")
+
+                # For coaches, check direct branch_id
+                elif recipient_type == UserType.COACH:
+                    recipient_branch_id = recipient.get("branch_id")
+                    if recipient_branch_id not in managed_branch_ids:
+                        print(f"❌ DEBUG MESSAGING: Coach not in managed branches")
+                        print(f"   Coach branch_id: {recipient_branch_id}")
+                        print(f"   Managed branch IDs: {managed_branch_ids}")
+                        raise HTTPException(status_code=403, detail="Cannot message users from branches you don't manage")
+                    else:
+                        print(f"✅ DEBUG MESSAGING: Coach in managed branch: {recipient_branch_id}")
+
             elif recipient_type == UserType.BRANCH_MANAGER:
                 raise HTTPException(status_code=403, detail="Branch managers cannot message other branch managers")
 

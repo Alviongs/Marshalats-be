@@ -46,14 +46,14 @@ class BranchController:
 
         if current_role == "branch_manager":
             # Branch managers can only see branches they manage
-            # Get the branch assignment from the branch manager's profile
-            branch_assignment = current_user.get("branch_assignment")
+            # The unified auth system populates managed_branches array
+            managed_branches = current_user.get("managed_branches", [])
 
-            if branch_assignment and branch_assignment.get("branch_id"):
+            if managed_branches:
                 # Filter to only show branches managed by this branch manager
-                filter_query["manager_id"] = current_user.get("id")
+                filter_query["id"] = {"$in": managed_branches}
             else:
-                # If no branch is assigned, return empty result
+                # If no branches are managed, return empty result
                 return {
                     "branches": [],
                     "total_count": 0,
@@ -195,6 +195,15 @@ class BranchController:
             raise HTTPException(status_code=401, detail="Authentication required")
 
         db = get_db()
+
+        # Check role-based access control
+        current_role = current_user.get("role")
+        if current_role == "branch_manager":
+            # Branch managers can only access branches they manage
+            managed_branches = current_user.get("managed_branches", [])
+            if branch_id not in managed_branches:
+                raise HTTPException(status_code=403, detail="You don't have permission to access this branch")
+
         branch = await db.branches.find_one({"id": branch_id})
         if not branch:
             raise HTTPException(status_code=404, detail="Branch not found")
@@ -275,6 +284,15 @@ class BranchController:
             raise HTTPException(status_code=401, detail="Authentication required")
 
         db = get_db()
+
+        # Check role-based access control
+        current_role = current_user.get("role")
+        if current_role == "branch_manager":
+            # Branch managers can only access branches they manage
+            managed_branches = current_user.get("managed_branches", [])
+            if branch_id not in managed_branches:
+                raise HTTPException(status_code=403, detail="You don't have permission to access this branch")
+
         branch = await db.branches.find_one({"id": branch_id})
         if not branch:
             raise HTTPException(status_code=404, detail="Branch not found")
@@ -419,8 +437,15 @@ class BranchController:
             except ValueError:
                 raise HTTPException(status_code=400, detail="Invalid user role")
         
+        # Branch Manager permission check
+        if current_role == "branch_manager":
+            # Branch managers can only update branches they manage
+            managed_branches = current_user.get("managed_branches", [])
+            if branch_id not in managed_branches:
+                raise HTTPException(status_code=403, detail="You don't have permission to update this branch")
+
         # Coach Admin permission check
-        if current_role == UserRole.COACH_ADMIN:
+        elif current_role == UserRole.COACH_ADMIN:
             # For nested structure, check if user is admin of this branch
             existing_branch = await db.branches.find_one({"id": branch_id})
             if not existing_branch:
@@ -473,7 +498,14 @@ class BranchController:
                 raise HTTPException(status_code=400, detail="Invalid user role")
         
         db = get_db()
-        if current_role == UserRole.COACH_ADMIN and current_user.get("branch_id") != branch_id:
+
+        # Branch Manager permission check
+        if current_role == "branch_manager":
+            # Branch managers can only manage holidays for branches they manage
+            managed_branches = current_user.get("managed_branches", [])
+            if branch_id not in managed_branches:
+                raise HTTPException(status_code=403, detail="You don't have permission to manage holidays for this branch")
+        elif current_role == UserRole.COACH_ADMIN and current_user.get("branch_id") != branch_id:
             raise HTTPException(status_code=403, detail="You can only add holidays to your own branch.")
 
         holiday = Holiday(
@@ -495,7 +527,15 @@ class BranchController:
         """Get all holidays for a specific branch."""
         if not current_user:
             raise HTTPException(status_code=401, detail="Authentication required")
-            
+
+        # Check role-based access control
+        current_role = current_user.get("role")
+        if current_role == "branch_manager":
+            # Branch managers can only access holidays for branches they manage
+            managed_branches = current_user.get("managed_branches", [])
+            if branch_id not in managed_branches:
+                raise HTTPException(status_code=403, detail="You don't have permission to access holidays for this branch")
+
         db = get_db()
         holidays = await db.holidays.find({"branch_id": branch_id}).to_list(1000)
         return {"holidays": serialize_doc(holidays)}
@@ -511,7 +551,15 @@ class BranchController:
             raise HTTPException(status_code=401, detail="Authentication required")
             
         db = get_db()
-        if current_user["role"] == UserRole.COACH_ADMIN and current_user.get("branch_id") != branch_id:
+
+        # Check role-based access control
+        current_role = current_user.get("role")
+        if current_role == "branch_manager":
+            # Branch managers can only delete holidays for branches they manage
+            managed_branches = current_user.get("managed_branches", [])
+            if branch_id not in managed_branches:
+                raise HTTPException(status_code=403, detail="You don't have permission to manage holidays for this branch")
+        elif current_user["role"] == UserRole.COACH_ADMIN and current_user.get("branch_id") != branch_id:
             raise HTTPException(status_code=403, detail="You can only delete holidays from your own branch.")
 
         result = await db.holidays.delete_one({"id": holiday_id, "branch_id": branch_id})
@@ -529,6 +577,14 @@ class BranchController:
             raise HTTPException(status_code=401, detail="Authentication required")
 
         db = get_db()
+
+        # Check role-based access control
+        current_role = current_user.get("role")
+        if current_role == "branch_manager":
+            # Branch managers can only delete branches they manage
+            managed_branches = current_user.get("managed_branches", [])
+            if branch_id not in managed_branches:
+                raise HTTPException(status_code=403, detail="You don't have permission to delete this branch")
 
         # Check if branch exists
         existing_branch = await db.branches.find_one({"id": branch_id})
