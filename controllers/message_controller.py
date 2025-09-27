@@ -39,9 +39,12 @@ class MessageController:
             
             sender_type = role_mapping.get(sender_role, UserType.STUDENT)
             
+            # Determine if this is a reply (has reply_to_message_id or thread_id)
+            is_reply = bool(message_data.reply_to_message_id or message_data.thread_id)
+
             # Get recipient information and validate access
             recipient = await MessageController._get_and_validate_recipient(
-                message_data.recipient_id, message_data.recipient_type, current_user
+                message_data.recipient_id, message_data.recipient_type, current_user, is_reply
             )
             
             # Find existing thread or create new one
@@ -594,6 +597,9 @@ class MessageController:
 
             elif user_role == "coach":
                 # Coaches can message students in their branch, branch manager, and superadmin
+                print(f"🔍 DEBUG: Coach recipients - User branch ID: {user_branch_id}")
+                print(f"🔍 DEBUG: Coach full data: {current_user}")
+
                 if user_branch_id:
                     # Get students in the same branch
                     students = await db.users.find({
@@ -602,6 +608,7 @@ class MessageController:
                         "is_active": True
                     }).to_list(length=None)
 
+                    print(f"🔍 DEBUG: Found {len(students)} students in coach's branch ({user_branch_id})")
                     for student in students:
                         recipients.append({
                             "id": student["id"],
@@ -610,6 +617,7 @@ class MessageController:
                             "type": "student",
                             "branch_id": student.get("branch_id")
                         })
+                        print(f"🔍 DEBUG: Added student: {student['full_name']} (Branch: {student.get('branch_id')})")
 
                     # Get branch manager
                     branch = await db.branches.find_one({"id": user_branch_id})
@@ -626,9 +634,61 @@ class MessageController:
                                 "type": "branch_manager",
                                 "branch_id": user_branch_id
                             })
+                            print(f"🔍 DEBUG: Added branch manager: {branch_manager['full_name']}")
+                        else:
+                            print(f"🔍 DEBUG: No branch manager found for branch {user_branch_id}")
+                    else:
+                        print(f"🔍 DEBUG: Branch not found or no manager_id for branch {user_branch_id}")
+                else:
+                    print(f"⚠️ DEBUG: Coach has no branch_id assigned")
+                    # Fallback: If coach has no branch_id, try to find it from coach record
+                    coach_id = current_user.get("id")
+                    if coach_id:
+                        coach_record = await db.coaches.find_one({"id": coach_id})
+                        if coach_record and coach_record.get("branch_id"):
+                            fallback_branch_id = coach_record["branch_id"]
+                            print(f"🔍 DEBUG: Found fallback branch_id from coach record: {fallback_branch_id}")
+
+                            # Get students in the fallback branch
+                            students = await db.users.find({
+                                "role": "student",
+                                "branch_id": fallback_branch_id,
+                                "is_active": True
+                            }).to_list(length=None)
+
+                            print(f"🔍 DEBUG: Found {len(students)} students in coach's fallback branch ({fallback_branch_id})")
+                            for student in students:
+                                recipients.append({
+                                    "id": student["id"],
+                                    "name": student["full_name"],
+                                    "email": student["email"],
+                                    "type": "student",
+                                    "branch_id": student.get("branch_id")
+                                })
+                                print(f"🔍 DEBUG: Added student (fallback): {student['full_name']} (Branch: {student.get('branch_id')})")
+
+                            # Get branch manager for fallback branch
+                            branch = await db.branches.find_one({"id": fallback_branch_id})
+                            if branch and branch.get("manager_id"):
+                                branch_manager = await db.branch_managers.find_one({
+                                    "id": branch["manager_id"],
+                                    "is_active": True
+                                })
+                                if branch_manager:
+                                    recipients.append({
+                                        "id": branch_manager["id"],
+                                        "name": branch_manager["full_name"],
+                                        "email": branch_manager["email"],
+                                        "type": "branch_manager",
+                                        "branch_id": fallback_branch_id
+                                    })
+                                    print(f"🔍 DEBUG: Added branch manager (fallback): {branch_manager['full_name']}")
+                        else:
+                            print(f"⚠️ DEBUG: No branch_id found in coach record either")
 
                 # Add superadmins
                 superadmins = await db.superadmins.find({"is_active": True}).to_list(length=None)
+                print(f"🔍 DEBUG: Found {len(superadmins)} superadmins for coach")
                 for admin in superadmins:
                     recipients.append({
                         "id": admin["id"],
@@ -637,6 +697,16 @@ class MessageController:
                         "type": "superadmin",
                         "branch_id": None
                     })
+                    print(f"🔍 DEBUG: Added superadmin: {admin['full_name']}")
+
+                print(f"🔍 DEBUG: Total recipients for coach: {len(recipients)}")
+                by_type = {}
+                for r in recipients:
+                    r_type = r["type"]
+                    if r_type not in by_type:
+                        by_type[r_type] = 0
+                    by_type[r_type] += 1
+                print(f"🔍 DEBUG: Coach recipients by type: {by_type}")
 
             elif user_role == "branch_manager":
                 # Branch managers can message students and coaches in their branch, and superadmin
@@ -781,12 +851,16 @@ class MessageController:
             )
 
     @staticmethod
-    async def _get_and_validate_recipient(recipient_id: str, recipient_type: UserType, current_user: dict) -> dict:
+    async def _get_and_validate_recipient(recipient_id: str, recipient_type: UserType, current_user: dict, is_reply: bool = False) -> dict:
         """Get recipient information and validate if current user can message them"""
         db = get_db()
 
         user_role = current_user["role"]
         user_branch_id = current_user.get("branch_id")
+
+        print(f"🔍 DEBUG: Validating recipient - User: {current_user.get('id')}, Role: {user_role}, Branch: {user_branch_id}")
+        print(f"🔍 DEBUG: Recipient: {recipient_id}, Type: {recipient_type}, Is Reply: {is_reply}")
+        print(f"🔍 DEBUG: Current user full data: {current_user}")
 
         # Get recipient based on type
         if recipient_type == UserType.STUDENT:
@@ -806,6 +880,8 @@ class MessageController:
 
         if not recipient:
             raise HTTPException(status_code=404, detail="Recipient not found")
+
+        print(f"🔍 DEBUG: Found recipient: {recipient.get('full_name', 'Unknown')} (Branch: {recipient.get('branch_id', 'None')})")
 
         # Validate access based on user role
         if user_role == "student":
@@ -848,14 +924,80 @@ class MessageController:
         elif user_role == "coach":
             # Coaches can message students in their branch, their branch manager, or superadmin
             if recipient_type == UserType.STUDENT:
-                if recipient.get("branch_id") != user_branch_id:
-                    raise HTTPException(status_code=403, detail="Cannot message students from other branches")
+                # For replies, be more lenient with branch validation
+                if is_reply:
+                    print(f"🔍 DEBUG: This is a reply - allowing more lenient validation")
+                    # For replies, we allow messaging if:
+                    # 1. Coach has same branch as student, OR
+                    # 2. Coach has no branch assignment (legacy data), OR
+                    # 3. Student has no branch assignment (legacy data)
+                    coach_branch = user_branch_id
+                    student_branch = recipient.get("branch_id")
+
+                    # Try to get coach branch from record if not in current_user
+                    if not coach_branch:
+                        coach_id = current_user.get("id")
+                        if coach_id:
+                            coach_record = await db.coaches.find_one({"id": coach_id})
+                            if coach_record:
+                                coach_branch = coach_record.get("branch_id")
+
+                    print(f"🔍 DEBUG: Reply validation - Coach branch: {coach_branch}, Student branch: {student_branch}")
+
+                    # Allow reply if either has no branch assignment or they match
+                    if not coach_branch or not student_branch or coach_branch == student_branch:
+                        print(f"✅ DEBUG: Reply allowed - branch validation passed")
+                    else:
+                        # For replies, check if there's an existing conversation between these users
+                        # This allows replying to existing conversations even if branch assignments changed
+                        print(f"🔍 DEBUG: Branch mismatch for reply, checking for existing conversation...")
+                        existing_conversation = await db.message_threads.find_one({
+                            "participants.user_id": {"$all": [current_user.get("id"), recipient_id]}
+                        })
+
+                        if existing_conversation:
+                            print(f"✅ DEBUG: Found existing conversation, allowing reply despite branch mismatch")
+                        else:
+                            print(f"❌ DEBUG: No existing conversation found, blocking reply")
+                            raise HTTPException(status_code=403, detail="Cannot reply to students from other branches")
+                else:
+                    # For new messages, enforce strict branch validation
+                    print(f"🔍 DEBUG: This is a new message - enforcing strict validation")
+                    if user_branch_id:
+                        if recipient.get("branch_id") != user_branch_id:
+                            raise HTTPException(status_code=403, detail="Cannot message students from other branches")
+                    else:
+                        # If coach has no branch_id, try to get it from coach record
+                        coach_id = current_user.get("id")
+                        if coach_id:
+                            coach_record = await db.coaches.find_one({"id": coach_id})
+                            if coach_record and coach_record.get("branch_id"):
+                                coach_branch_id = coach_record["branch_id"]
+                                if recipient.get("branch_id") != coach_branch_id:
+                                    raise HTTPException(status_code=403, detail="Cannot message students from other branches")
+                            else:
+                                # If no branch assignment found, allow messaging (for legacy data)
+                                print(f"⚠️ DEBUG: Coach {coach_id} has no branch assignment, allowing new message")
+                        else:
+                            raise HTTPException(status_code=403, detail="Coach authentication error")
             elif recipient_type == UserType.BRANCH_MANAGER:
                 # Check if this branch manager manages the coach's branch
-                if user_branch_id:
-                    branch = await db.branches.find_one({"id": user_branch_id})
+                effective_branch_id = user_branch_id
+                if not effective_branch_id:
+                    # Try to get branch_id from coach record
+                    coach_id = current_user.get("id")
+                    if coach_id:
+                        coach_record = await db.coaches.find_one({"id": coach_id})
+                        if coach_record and coach_record.get("branch_id"):
+                            effective_branch_id = coach_record["branch_id"]
+
+                if effective_branch_id:
+                    branch = await db.branches.find_one({"id": effective_branch_id})
                     if not branch or branch.get("manager_id") != recipient_id:
                         raise HTTPException(status_code=403, detail="Cannot message this branch manager")
+                else:
+                    # If no branch assignment, allow messaging superadmin-level branch managers
+                    print(f"⚠️ DEBUG: Coach has no branch assignment, allowing branch manager message for reply")
             elif recipient_type == UserType.COACH:
                 raise HTTPException(status_code=403, detail="Coaches cannot message other coaches")
 

@@ -799,7 +799,8 @@ class CoachController:
                     "sub": coach["id"],
                     "email": coach["contact_info"]["email"],
                     "role": "coach",
-                    "coach_id": coach["id"]
+                    "coach_id": coach["id"],
+                    "branch_id": coach.get("branch_id")  # Include branch_id in JWT token
                 }
             )
             

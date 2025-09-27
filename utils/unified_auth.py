@@ -81,6 +81,15 @@ async def get_current_user_or_superadmin(credentials: HTTPAuthorizationCredentia
             # Convert coach to user-like format for role checking
             coach_data = serialize_doc(coach)
             coach_data["role"] = "coach"  # Set role for UserRole enum
+
+            # Include branch_id from JWT token if available (for newer tokens)
+            jwt_branch_id = payload.get("branch_id")
+            if jwt_branch_id:
+                coach_data["branch_id"] = jwt_branch_id
+            elif not coach_data.get("branch_id"):
+                # Fallback: ensure branch_id is available from coach record
+                coach_data["branch_id"] = coach.get("branch_id")
+
             return coach_data
 
         # Regular user token (or token without role field)
