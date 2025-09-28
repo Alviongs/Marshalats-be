@@ -50,8 +50,10 @@ class CoachAttendance(BaseModel):
     method: AttendanceMethod
     marked_by: Optional[str] = None
     is_present: bool = True
+    status: Optional[str] = None  # "present", "absent", "late"
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
 
 class CoachAttendanceCreate(BaseModel):
     coach_id: str

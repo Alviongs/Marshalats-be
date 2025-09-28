@@ -363,16 +363,17 @@ class AttendanceController:
         end_date: Optional[str] = None,
         current_user: dict = None
     ):
-        """Get coach attendance data"""
+        """Get coach attendance data with unified attendance system"""
         try:
             db = get_db()
             if db is None:
                 raise HTTPException(status_code=500, detail="Database connection not available")
 
-            # Build filter query for coaches
-            filter_query = {"role": "coach", "is_active": True}
+            # Build filter query for coaches - use coaches collection instead of users
+            coach_filter = {"is_active": True}
 
             # Apply role-based filtering for branch managers
+            managed_branch_ids = None
             if current_user and current_user.get("role") == "branch_manager":
                 branch_manager_id = current_user.get("id")
                 if not branch_manager_id:
@@ -383,94 +384,164 @@ class AttendanceController:
                     return {"coaches": [], "total": 0}
 
                 managed_branch_ids = [branch["id"] for branch in managed_branches]
-                filter_query["branch_id"] = {"$in": managed_branch_ids}
+                coach_filter["branch_id"] = {"$in": managed_branch_ids}
 
             if branch_id and current_user.get("role") != "branch_manager":
-                filter_query["branch_id"] = branch_id
+                coach_filter["branch_id"] = branch_id
 
-            # Get coaches from the specified branches
-            coaches = await db.users.find(filter_query).to_list(length=1000)
+            # Get coaches from the coaches collection (not users collection)
+            coaches = await db.coaches.find(coach_filter).to_list(length=1000)
 
-            # For each coach, get their attendance data
-            coach_attendance_data = []
-            for coach in coaches:
-                coach_id = coach.get("id")
+            # If single date is provided, return format compatible with branch manager attendance page
+            if date:
+                try:
+                    # Parse single date and create range for the entire day
+                    date_dt = datetime.fromisoformat(date.replace('Z', '+00:00'))
+                    start_of_day = date_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+                    end_of_day = date_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid date format")
 
-                # Build attendance filter
-                attendance_filter = {"coach_id": coach_id}
-
-                # Date filtering - single date takes precedence over date range
-                if date:
-                    try:
-                        # Parse single date and create range for the entire day
-                        date_dt = datetime.fromisoformat(date.replace('Z', '+00:00'))
-                        start_of_day = date_dt.replace(hour=0, minute=0, second=0, microsecond=0)
-                        end_of_day = date_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
-                        attendance_filter["attendance_date"] = {"$gte": start_of_day, "$lte": end_of_day}
-                    except ValueError:
-                        raise HTTPException(status_code=400, detail="Invalid date format")
-                elif start_date and end_date:
-                    try:
-                        start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-                        end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-                        attendance_filter["attendance_date"] = {"$gte": start_dt, "$lte": end_dt}
-                    except ValueError:
-                        raise HTTPException(status_code=400, detail="Invalid date format")
-
-                # Get coach attendance records - try both collections
-                attendance_records = await db.coach_attendance.find(attendance_filter).to_list(length=1000)
-
-                # If no records in coach_attendance, create mock data or use alternative approach
-                if not attendance_records:
-                    # For now, create sample attendance data based on working days
-                    # In production, this should be replaced with actual attendance tracking
-                    today = datetime.now()
-                    if start_date and end_date:
-                        start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-                        end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-                        # Generate mock attendance for the date range
-                        current_date = start_dt
-                        while current_date <= end_dt:
-                            if current_date.weekday() < 5:  # Monday to Friday
-                                attendance_records.append({
-                                    "coach_id": coach_id,
-                                    "attendance_date": current_date,
-                                    "is_present": True,  # Assume present for now
-                                    "check_in_time": current_date.replace(hour=9, minute=0),
-                                    "check_out_time": current_date.replace(hour=17, minute=0)
-                                })
-                            current_date += timedelta(days=1)
-
-                # Calculate statistics
-                total_days = len(attendance_records)
-                present_days = sum(1 for record in attendance_records if record.get("is_present", False))
-                attendance_percentage = (present_days / total_days * 100) if total_days > 0 else 0
-
-                # Get latest attendance
-                latest_attendance = None
-                if attendance_records:
-                    latest_record = max(attendance_records, key=lambda x: x.get("attendance_date", datetime.min))
-                    latest_attendance = latest_record.get("attendance_date")
-
-                coach_data = {
-                    "coach_id": coach_id,
-                    "coach_name": coach.get("full_name") or f"{coach.get('first_name', '')} {coach.get('last_name', '')}".strip(),
-                    "email": coach.get("email"),
-                    "phone": coach.get("phone"),
-                    "branch_id": coach.get("branch_id"),
-                    "expertise": coach.get("expertise", []),
-                    "total_days": total_days,
-                    "present_days": present_days,
-                    "attendance_percentage": round(attendance_percentage, 2),
-                    "last_attendance": latest_attendance.isoformat() if latest_attendance else None
+                # Build attendance filter for the specific date
+                attendance_filter = {
+                    "attendance_date": {"$gte": start_of_day, "$lte": end_of_day}
                 }
 
-                coach_attendance_data.append(coach_data)
+                # Apply branch filtering to attendance records
+                if managed_branch_ids:
+                    attendance_filter["branch_id"] = {"$in": managed_branch_ids}
+                elif branch_id:
+                    attendance_filter["branch_id"] = branch_id
 
-            return {
-                "coaches": coach_attendance_data,
-                "total": len(coach_attendance_data)
-            }
+                # Get attendance records for the specific date from unified attendance collection
+                # Look for coach attendance records (where coach_id is set instead of student_id)
+                attendance_records = await db.coach_attendance.find(attendance_filter).to_list(length=1000)
+
+                # Create a map of coach attendance
+                attendance_map = {}
+                for record in attendance_records:
+                    coach_id = record.get("coach_id")
+                    if coach_id:
+                        # Use stored status if available, otherwise fall back to is_present logic
+                        stored_status = record.get("status")
+                        if stored_status:
+                            status = stored_status
+                        else:
+                            # Fallback for old records without status field
+                            status = "present" if record.get("is_present") else "absent"
+
+                        attendance_map[coach_id] = {
+                            "status": status,
+                            "check_in_time": record.get("check_in_time"),
+                            "check_out_time": record.get("check_out_time"),
+                            "notes": record.get("notes", ""),
+                            "marked_by": record.get("marked_by")
+                        }
+
+                # Combine coach data with attendance information
+                result_coaches = []
+                for coach in coaches:
+                    coach_id = coach.get("id")
+                    attendance_info = attendance_map.get(coach_id, {
+                        "status": "not_marked",  # Default to not_marked if no record
+                        "check_in_time": None,
+                        "check_out_time": None,
+                        "notes": "",
+                        "marked_by": None
+                    })
+
+                    # Get branch information
+                    branch_name = "Unknown Branch"
+                    if coach.get("branch_id"):
+                        branch = await db.branches.find_one({"id": coach["branch_id"]})
+                        if branch:
+                            branch_name = branch.get("branch", {}).get("name") or branch.get("name", "Unknown Branch")
+
+                    # Extract coach information from coaches collection structure
+                    coach_name = coach.get("full_name") or f"{coach.get('first_name', '')} {coach.get('last_name', '')}".strip()
+                    if not coach_name.strip():
+                        # Fallback to personal_info if direct fields are empty
+                        personal_info = coach.get("personal_info", {})
+                        coach_name = f"{personal_info.get('first_name', '')} {personal_info.get('last_name', '')}".strip()
+
+                    # Get contact information
+                    email = coach.get("email") or coach.get("contact_info", {}).get("email", "")
+                    phone = coach.get("phone") or coach.get("contact_info", {}).get("phone", "")
+
+                    # Get expertise information
+                    expertise = coach.get("areas_of_expertise", []) or coach.get("expertise", [])
+
+                    result_coaches.append({
+                        "coach_id": coach_id,
+                        "id": coach_id,  # For compatibility
+                        "coach_name": coach_name or "Unknown Coach",
+                        "full_name": coach_name or "Unknown Coach",
+                        "email": email,
+                        "phone": phone,
+                        "branch_id": coach.get("branch_id"),
+                        "branch_name": branch_name,
+                        "expertise": expertise,
+                        "attendance": attendance_info
+                    })
+
+                return {
+                    "coaches": result_coaches,
+                    "date": date,
+                    "total": len(result_coaches),
+                    "attendance_marked": len([c for c in result_coaches if c["attendance"]["status"] != "not_marked"])
+                }
+
+            # For date range queries, return the original format with statistics
+            else:
+                coach_attendance_data = []
+                for coach in coaches:
+                    coach_id = coach.get("id")
+
+                    # Build attendance filter
+                    attendance_filter = {"coach_id": coach_id}
+
+                    # Date filtering for range queries
+                    if start_date and end_date:
+                        try:
+                            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                            attendance_filter["attendance_date"] = {"$gte": start_dt, "$lte": end_dt}
+                        except ValueError:
+                            raise HTTPException(status_code=400, detail="Invalid date format")
+
+                    # Get coach attendance records from coach_attendance collection
+                    attendance_records = await db.coach_attendance.find(attendance_filter).to_list(length=1000)
+
+                    # Calculate statistics
+                    total_days = len(attendance_records)
+                    present_days = sum(1 for record in attendance_records if record.get("is_present", False))
+                    attendance_percentage = (present_days / total_days * 100) if total_days > 0 else 0
+
+                    # Get latest attendance
+                    latest_attendance = None
+                    if attendance_records:
+                        latest_record = max(attendance_records, key=lambda x: x.get("attendance_date", datetime.min))
+                        latest_attendance = latest_record.get("attendance_date")
+
+                    coach_data = {
+                        "coach_id": coach_id,
+                        "coach_name": coach.get("full_name") or f"{coach.get('first_name', '')} {coach.get('last_name', '')}".strip(),
+                        "email": coach.get("email"),
+                        "phone": coach.get("phone"),
+                        "branch_id": coach.get("branch_id"),
+                        "expertise": coach.get("expertise", []),
+                        "total_days": total_days,
+                        "present_days": present_days,
+                        "attendance_percentage": round(attendance_percentage, 2),
+                        "last_attendance": latest_attendance.isoformat() if latest_attendance else None
+                    }
+
+                    coach_attendance_data.append(coach_data)
+
+                return {
+                    "coaches": coach_attendance_data,
+                    "total": len(coach_attendance_data)
+                }
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get coach attendance: {str(e)}")
@@ -819,7 +890,7 @@ class AttendanceController:
 
     @staticmethod
     async def mark_coach_attendance(attendance_data: CoachAttendanceCreate, current_user: dict):
-        """Mark attendance for a coach"""
+        """Mark attendance for a coach using unified attendance system"""
         try:
             db = get_db()
             if db is None:
@@ -846,27 +917,74 @@ class AttendanceController:
                 if not coach:
                     raise HTTPException(status_code=404, detail="Coach not found")
 
-            # Check if attendance already marked for this date
-            existing_attendance = await db.coach_attendance.find_one({
-                "coach_id": attendance_data.coach_id,
-                "attendance_date": {
-                    "$gte": attendance_data.attendance_date.replace(hour=0, minute=0, second=0, microsecond=0),
-                    "$lt": attendance_data.attendance_date.replace(hour=23, minute=59, second=59, microsecond=999999)
-                }
-            })
+            # Enhanced deduplication: Check if attendance already exists for this exact date
+            attendance_date_start = attendance_data.attendance_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            attendance_date_end = attendance_data.attendance_date.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-            if existing_attendance:
-                raise HTTPException(status_code=400, detail="Attendance already marked for this coach today")
+            print(f"🔍 Checking for existing coach attendance: coach_id={attendance_data.coach_id}, date_range={attendance_date_start} to {attendance_date_end}")
 
-            # Create coach attendance record
-            coach_attendance = CoachAttendance(
-                **attendance_data.dict(),
-                check_in_time=datetime.utcnow() if attendance_data.is_present else None,
-                marked_by=current_user["id"]
+            # Find the most recent existing attendance record for this date
+            existing = await db.coach_attendance.find_one(
+                {
+                    "coach_id": attendance_data.coach_id,
+                    "branch_id": attendance_data.branch_id,
+                    "attendance_date": {
+                        "$gte": attendance_date_start,
+                        "$lt": attendance_date_end
+                    }
+                },
+                sort=[
+                    ("updated_at", -1),  # Most recent update first
+                    ("created_at", -1)   # Then most recent creation
+                ]
             )
 
-            await db.coach_attendance.insert_one(coach_attendance.dict())
-            return {"message": "Coach attendance marked successfully", "attendance_id": coach_attendance.id}
+            if existing:
+                print(f"📝 Found existing coach attendance record: {existing['id']} - updating instead of creating duplicate")
+
+                # Update existing record (proper upsert functionality)
+                # Determine status based on is_present
+                status = "present" if attendance_data.is_present else "absent"
+
+                update_data = {
+                    "check_in_time": datetime.utcnow() if attendance_data.is_present else None,
+                    "check_out_time": None,  # Can be updated later if needed
+                    "is_present": attendance_data.is_present,
+                    "status": status,  # Set proper status value
+                    "notes": attendance_data.notes,
+                    "marked_by": current_user["id"],
+                    "method": attendance_data.method,
+                    "updated_at": datetime.utcnow()  # Track when it was last updated
+                }
+
+                result = await db.coach_attendance.update_one(
+                    {"id": existing["id"]},
+                    {"$set": update_data}
+                )
+
+                if result.modified_count > 0:
+                    print(f"✅ Successfully updated existing coach attendance record: {existing['id']}")
+                    return {"message": "Coach attendance updated successfully", "attendance_id": existing["id"], "action": "updated"}
+                else:
+                    print(f"⚠️ No changes made to existing coach attendance record: {existing['id']}")
+                    return {"message": "Coach attendance already up to date", "attendance_id": existing["id"], "action": "no_change"}
+            else:
+                print(f"➕ No existing coach attendance found - creating new record")
+
+                # Create coach attendance record
+                # Determine status based on is_present
+                status = "present" if attendance_data.is_present else "absent"
+
+                coach_attendance = CoachAttendance(
+                    **attendance_data.dict(),
+                    check_in_time=datetime.utcnow() if attendance_data.is_present else None,
+                    status=status,  # Set proper status value
+                    marked_by=current_user["id"]
+                )
+
+                await db.coach_attendance.insert_one(coach_attendance.dict())
+                print(f"✅ Successfully created new coach attendance record: {coach_attendance.id}")
+                return {"message": "Coach attendance marked successfully", "attendance_id": coach_attendance.id, "action": "created"}
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to mark coach attendance: {str(e)}")
@@ -1266,16 +1384,74 @@ class AttendanceController:
                     return {"message": "Student attendance marked successfully", "attendance_id": attendance.id, "action": "created"}
 
             elif user_type == "coach":
-                # Use existing coach attendance method
-                coach_data = CoachAttendanceCreate(
-                    coach_id=user_id,
-                    branch_id=attendance_request.branch_id,
-                    attendance_date=attendance_request.attendance_date,
-                    method=AttendanceMethod.MANUAL,
-                    is_present=is_present,
-                    notes=attendance_request.notes
+                # Enhanced deduplication for coach attendance: Check if attendance already exists for this exact date
+                attendance_date_start = attendance_request.attendance_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                attendance_date_end = attendance_request.attendance_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+                print(f"🔍 Checking for existing coach attendance: coach_id={user_id}, branch_id={attendance_request.branch_id}, date_range={attendance_date_start} to {attendance_date_end}")
+
+                # Find the most recent existing attendance record for this date
+                existing = await db.coach_attendance.find_one(
+                    {
+                        "coach_id": user_id,
+                        "branch_id": attendance_request.branch_id,
+                        "attendance_date": {
+                            "$gte": attendance_date_start,
+                            "$lt": attendance_date_end
+                        }
+                    },
+                    sort=[
+                        ("updated_at", -1),  # Most recent update first
+                        ("created_at", -1)   # Then most recent creation
+                    ]
                 )
-                return await AttendanceController.mark_coach_attendance(coach_data, current_user)
+
+                if existing:
+                    print(f"📝 Found existing coach attendance record: {existing['id']} - updating instead of creating duplicate")
+
+                    # Update existing record (proper upsert functionality)
+                    update_data = {
+                        "check_in_time": check_in_time,
+                        "check_out_time": attendance_request.check_out_time,
+                        "is_present": is_present,
+                        "status": attendance_request.status.value if hasattr(attendance_request.status, 'value') else attendance_request.status,  # Handle both enum and string
+                        "notes": attendance_request.notes,
+                        "marked_by": current_user["id"],
+                        "method": AttendanceMethod.MANUAL,
+                        "updated_at": datetime.utcnow()  # Track when it was last updated
+                    }
+
+                    result = await db.coach_attendance.update_one(
+                        {"id": existing["id"]},
+                        {"$set": update_data}
+                    )
+
+                    if result.modified_count > 0:
+                        print(f"✅ Successfully updated existing coach attendance record: {existing['id']}")
+                        return {"message": "Coach attendance updated successfully", "attendance_id": existing["id"], "action": "updated"}
+                    else:
+                        print(f"⚠️ No changes made to existing coach attendance record: {existing['id']}")
+                        return {"message": "Coach attendance already up to date", "attendance_id": existing["id"], "action": "no_change"}
+                else:
+                    print(f"➕ No existing coach attendance found - creating new record")
+
+                    # Create new coach attendance record
+                    coach_attendance = CoachAttendance(
+                        coach_id=user_id,
+                        branch_id=attendance_request.branch_id,
+                        attendance_date=attendance_request.attendance_date,
+                        check_in_time=check_in_time,
+                        check_out_time=attendance_request.check_out_time,
+                        method=AttendanceMethod.MANUAL,
+                        marked_by=current_user["id"],
+                        is_present=is_present,
+                        status=attendance_request.status.value if hasattr(attendance_request.status, 'value') else attendance_request.status,  # Handle both enum and string
+                        notes=attendance_request.notes
+                    )
+
+                    await db.coach_attendance.insert_one(coach_attendance.dict())
+                    print(f"✅ Successfully created new coach attendance record: {coach_attendance.id}")
+                    return {"message": "Coach attendance marked successfully", "attendance_id": coach_attendance.id, "action": "created"}
 
             elif user_type == "branch_manager":
                 # Use existing branch manager attendance method
