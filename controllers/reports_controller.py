@@ -329,23 +329,52 @@ class ReportsController:
         start_date: Optional[dt.datetime] = None,
         end_date: Optional[dt.datetime] = None
     ):
-        """Get comprehensive student reports"""
+        """Get comprehensive student reports with branch-specific filtering for branch managers"""
         if not current_user:
             raise HTTPException(status_code=401, detail="Authentication required")
 
         db = get_db()
-        
-        # Build filter query
+
+        # Build filter query based on user role
         filter_query = {"role": "student", "is_active": True}
-        if current_user["role"] == "coach_admin" and current_user.get("branch_id"):
+        managed_branch_ids = []
+
+        # Handle branch manager role - filter by managed branches
+        if current_user["role"] == "branch_manager":
+            managed_branch_ids = current_user.get("managed_branches", [])
+            if not managed_branch_ids:
+                # If no managed branches found, return empty results
+                return {
+                    "student_reports": {
+                        "enrollment_statistics": [],
+                        "attendance_statistics": [],
+                        "students_by_branch": []
+                    },
+                    "generated_at": dt.datetime.utcnow(),
+                    "message": "No branches assigned to this branch manager"
+                }
+
+            # Filter students by managed branches through enrollments
+            # We'll handle this in the aggregation pipelines below
+
+        elif current_user["role"] == "coach_admin" and current_user.get("branch_id"):
             filter_query["branch_id"] = current_user["branch_id"]
-        elif branch_id:
+            managed_branch_ids = [current_user["branch_id"]]
+        elif branch_id and current_user["role"] == "superadmin":
             filter_query["branch_id"] = branch_id
+            managed_branch_ids = [branch_id] if branch_id else []
 
         try:
+            # Build enrollment filter for branch managers
+            enrollment_filter = {"is_active": True}
+            if managed_branch_ids:
+                enrollment_filter["branch_id"] = {"$in": managed_branch_ids}
+            if course_id:
+                enrollment_filter["course_id"] = course_id
+
             # Student enrollment statistics
             enrollment_stats = await db.enrollments.aggregate([
-                {"$match": {"is_active": True}},
+                {"$match": enrollment_filter},
                 {"$group": {
                     "_id": "$course_id",
                     "total_students": {"$sum": 1}
@@ -359,11 +388,13 @@ class ReportsController:
                 {"$unwind": "$course_info"}
             ]).to_list(50)
 
-            # Student attendance statistics
+            # Student attendance statistics with branch filtering
             attendance_filter = {}
             if start_date and end_date:
                 attendance_filter["attendance_date"] = {"$gte": start_date, "$lte": end_date}
-            
+            if managed_branch_ids:
+                attendance_filter["branch_id"] = {"$in": managed_branch_ids}
+
             attendance_stats = await db.attendance.aggregate([
                 {"$match": attendance_filter},
                 {"$group": {
@@ -381,21 +412,43 @@ class ReportsController:
                 }}
             ]).to_list(1000)
 
-            # Active students by branch
-            students_by_branch = await db.users.aggregate([
-                {"$match": filter_query},
-                {"$group": {
-                    "_id": "$branch_id",
-                    "total_students": {"$sum": 1}
-                }},
-                {"$lookup": {
-                    "from": "branches",
-                    "localField": "_id",
-                    "foreignField": "id",
-                    "as": "branch_info"
-                }},
-                {"$unwind": "$branch_info"}
-            ]).to_list(20)
+            # Active students by branch - use enrollments for accurate branch filtering
+            if current_user["role"] == "branch_manager" and managed_branch_ids:
+                # For branch managers, get students through enrollments to ensure accurate branch association
+                students_by_branch = await db.enrollments.aggregate([
+                    {"$match": {"is_active": True, "branch_id": {"$in": managed_branch_ids}}},
+                    {"$group": {
+                        "_id": "$branch_id",
+                        "total_students": {"$addToSet": "$student_id"}
+                    }},
+                    {"$project": {
+                        "_id": 1,
+                        "total_students": {"$size": "$total_students"}
+                    }},
+                    {"$lookup": {
+                        "from": "branches",
+                        "localField": "_id",
+                        "foreignField": "id",
+                        "as": "branch_info"
+                    }},
+                    {"$unwind": "$branch_info"}
+                ]).to_list(20)
+            else:
+                # For superadmin and coach_admin, use the original approach
+                students_by_branch = await db.users.aggregate([
+                    {"$match": filter_query},
+                    {"$group": {
+                        "_id": "$branch_id",
+                        "total_students": {"$sum": 1}
+                    }},
+                    {"$lookup": {
+                        "from": "branches",
+                        "localField": "_id",
+                        "foreignField": "id",
+                        "as": "branch_info"
+                    }},
+                    {"$unwind": "$branch_info"}
+                ]).to_list(20)
 
             return {
                 "student_reports": {
@@ -403,11 +456,95 @@ class ReportsController:
                     "attendance_statistics": serialize_doc(attendance_stats),
                     "students_by_branch": serialize_doc(students_by_branch)
                 },
+                "filters_applied": {
+                    "branch_id": branch_id,
+                    "course_id": course_id,
+                    "start_date": start_date.isoformat() if start_date else None,
+                    "end_date": end_date.isoformat() if end_date else None,
+                    "user_role": current_user["role"],
+                    "managed_branches": managed_branch_ids if current_user["role"] == "branch_manager" else None
+                },
                 "generated_at": dt.datetime.utcnow()
             }
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error generating student reports: {str(e)}")
+
+    @staticmethod
+    async def get_student_report_filters(current_user: dict):
+        """Get available filter options for student reports (branch-specific for branch managers)"""
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
+        db = get_db()
+
+        try:
+            # Determine which branches the user can access
+            managed_branch_ids = []
+            if current_user["role"] == "branch_manager":
+                managed_branch_ids = current_user.get("managed_branches", [])
+                if not managed_branch_ids:
+                    return {
+                        "filters": {
+                            "branches": [],
+                            "courses": [],
+                            "categories": []
+                        },
+                        "message": "No branches assigned to this branch manager"
+                    }
+            elif current_user["role"] == "coach_admin" and current_user.get("branch_id"):
+                managed_branch_ids = [current_user["branch_id"]]
+            # For superadmin, no branch filtering needed (managed_branch_ids stays empty)
+
+            # Get branches (filtered for branch managers)
+            branch_filter = {"is_active": True}
+            if managed_branch_ids:
+                branch_filter["id"] = {"$in": managed_branch_ids}
+
+            branches = await db.branches.find(branch_filter).to_list(100)
+            branch_options = [
+                {
+                    "id": branch["id"],
+                    "name": branch.get("branch", {}).get("name", "Unknown Branch"),
+                    "location": f"{branch.get('branch', {}).get('address', {}).get('city', '')}, {branch.get('branch', {}).get('address', {}).get('state', '')}"
+                }
+                for branch in branches
+            ]
+
+            # Get courses (filtered by branch for branch managers)
+            course_filter = {"is_active": True}
+            if managed_branch_ids:
+                # Get courses that are assigned to the managed branches
+                course_filter["branch_assignments"] = {"$in": managed_branch_ids}
+
+            courses = await db.courses.find(course_filter).to_list(200)
+            course_options = [
+                {
+                    "id": course["id"],
+                    "title": course.get("title", "Unknown Course"),
+                    "code": course.get("code", ""),
+                    "category": course.get("category", "")
+                }
+                for course in courses
+            ]
+
+            # Get categories from the courses
+            categories = list(set([course.get("category", "") for course in courses if course.get("category")]))
+            category_options = [{"name": cat} for cat in sorted(categories) if cat]
+
+            return {
+                "filters": {
+                    "branches": branch_options,
+                    "courses": course_options,
+                    "categories": category_options
+                },
+                "user_role": current_user["role"],
+                "managed_branches": managed_branch_ids if current_user["role"] == "branch_manager" else None,
+                "generated_at": dt.datetime.utcnow()
+            }
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error getting student report filters: {str(e)}")
 
     @staticmethod
     async def get_coach_reports(

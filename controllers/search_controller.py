@@ -447,6 +447,20 @@ class SearchController:
         elif current_role == UserRole.COACH:
             if current_user.get("branch_id"):
                 branch_id = current_user["branch_id"]  # Override branch filter for coach
+        elif current_role == UserRole.BRANCH_MANAGER:
+            # Branch managers can only see students from their managed branches
+            managed_branches = current_user.get("managed_branches", [])
+            if not managed_branches:
+                # If no managed branches, return empty result
+                return {
+                    "query": query or "",
+                    "students": [],
+                    "total": 0,
+                    "count": 0,
+                    "message": "No branches assigned to this manager"
+                }
+            # For branch managers, we need to filter by enrollments in managed branches
+            # We'll handle this filtering after getting the base student list
 
         # Get students matching the base criteria
         students_cursor = db.users.find(student_filter).skip(skip).limit(limit)
@@ -455,8 +469,32 @@ class SearchController:
         # Get total count for pagination
         total_students = await db.users.count_documents(student_filter)
 
-        # If branch or course filtering is required, we need to join with enrollments
-        if branch_id or course_id:
+        # Handle branch manager filtering or regular branch/course filtering
+        if current_role == UserRole.BRANCH_MANAGER:
+            # For branch managers, filter students by enrollments in managed branches
+            managed_branches = current_user.get("managed_branches", [])
+            student_ids = [student["id"] for student in students]
+
+            # Build enrollment filter for managed branches
+            enrollment_filter = {
+                "student_id": {"$in": student_ids},
+                "branch_id": {"$in": managed_branches},
+                "is_active": True
+            }
+
+            # Add additional filters if provided
+            if course_id and course_id != "all":
+                enrollment_filter["course_id"] = course_id
+
+            # Get matching enrollments
+            enrollments = await db.enrollments.find(enrollment_filter).to_list(length=None)
+
+            # Filter students based on enrollment matches
+            enrolled_student_ids = set(enrollment["student_id"] for enrollment in enrollments)
+            students = [student for student in students if student["id"] in enrolled_student_ids]
+
+        elif branch_id or course_id:
+            # Regular branch or course filtering for other roles
             student_ids = [student["id"] for student in students]
 
             # Build enrollment filter

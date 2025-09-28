@@ -46,16 +46,23 @@ async def get_financial_report_filters(
 
 @router.get("/students")
 async def get_student_reports(
-    branch_id: Optional[str] = Query(None, description="Filter by branch ID"),
+    branch_id: Optional[str] = Query(None, description="Filter by branch ID (ignored for branch managers - they see only their assigned branches)"),
     course_id: Optional[str] = Query(None, description="Filter by course ID"),
     start_date: Optional[datetime] = Query(None, description="Start date for report"),
     end_date: Optional[datetime] = Query(None, description="End date for report"),
     current_user: dict = Depends(get_current_user_or_superadmin)
 ):
-    """Get comprehensive student reports"""
+    """Get comprehensive student reports with branch-specific filtering for branch managers"""
     return await ReportsController.get_student_reports(
         current_user, branch_id, course_id, start_date, end_date
     )
+
+@router.get("/students/filters")
+async def get_student_report_filters(
+    current_user: dict = Depends(get_current_user_or_superadmin)
+):
+    """Get available filter options for student reports (branch-specific for branch managers)"""
+    return await ReportsController.get_student_report_filters(current_user)
 
 @router.get("/coaches")
 async def get_coach_reports(
