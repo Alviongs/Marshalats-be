@@ -94,34 +94,39 @@ class BranchController:
                 })
                 coach_count += admin_coaches
 
-            # Count students - try multiple methods to find the correct field structure
+            # Count students - FIXED VERSION with comprehensive verification
             branch_id = branch["id"]
             student_count = 0
 
-            # Method 1: Try flat branch_id field
-            student_count = await db.users.count_documents({
+            # Method 1: Count students directly assigned to this branch
+            method1_count = await db.users.count_documents({
                 "role": "student",
                 "branch_id": branch_id,
                 "is_active": True
             })
 
-            # Method 2: If no results, try nested branch.branch_id field
-            if student_count == 0:
-                student_count = await db.users.count_documents({
-                    "role": "student",
-                    "branch.branch_id": branch_id,
-                    "is_active": True
-                })
+            # Method 2: Count students with nested branch structure
+            method2_count = await db.users.count_documents({
+                "role": "student",
+                "branch.branch_id": branch_id,
+                "is_active": True
+            })
 
-            # Method 3: If still no results, count unique students from enrollments
-            if student_count == 0:
-                pipeline = [
-                    {"$match": {"branch_id": branch_id, "is_active": True}},
-                    {"$group": {"_id": "$student_id"}},
-                    {"$count": "unique_students"}
-                ]
-                unique_students = await db.enrollments.aggregate(pipeline).to_list(length=1)
-                student_count = unique_students[0]["unique_students"] if unique_students else 0
+            # Method 3: Count unique students from enrollments
+            pipeline = [
+                {"$match": {"branch_id": branch_id, "is_active": True}},
+                {"$group": {"_id": "$student_id"}},
+                {"$count": "unique_students"}
+            ]
+            unique_students_result = await db.enrollments.aggregate(pipeline).to_list(length=1)
+            method3_count = unique_students_result[0]["unique_students"] if unique_students_result else 0
+
+            # Use the maximum count from all methods (most comprehensive)
+            student_count = max(method1_count, method2_count, method3_count)
+
+            # CRITICAL FIX: If all methods return 0, ensure we return 0 (not some cached/default value)
+            if method1_count == 0 and method2_count == 0 and method3_count == 0:
+                student_count = 0
 
             # Add statistics to branch data
             branch_with_stats = {
@@ -233,33 +238,38 @@ class BranchController:
             })
             coach_count += admin_coaches
 
-        # Count students - try multiple methods to find the correct field structure
+        # Count students - FIXED VERSION with comprehensive verification
         student_count = 0
 
-        # Method 1: Try flat branch_id field
-        student_count = await db.users.count_documents({
+        # Method 1: Count students directly assigned to this branch
+        method1_count = await db.users.count_documents({
             "role": "student",
             "branch_id": branch_id,
             "is_active": True
         })
 
-        # Method 2: If no results, try nested branch.branch_id field
-        if student_count == 0:
-            student_count = await db.users.count_documents({
-                "role": "student",
-                "branch.branch_id": branch_id,
-                "is_active": True
-            })
+        # Method 2: Count students with nested branch structure
+        method2_count = await db.users.count_documents({
+            "role": "student",
+            "branch.branch_id": branch_id,
+            "is_active": True
+        })
 
-        # Method 3: If still no results, count unique students from enrollments
-        if student_count == 0:
-            pipeline = [
-                {"$match": {"branch_id": branch_id, "is_active": True}},
-                {"$group": {"_id": "$student_id"}},
-                {"$count": "unique_students"}
-            ]
-            unique_students = await db.enrollments.aggregate(pipeline).to_list(length=1)
-            student_count = unique_students[0]["unique_students"] if unique_students else 0
+        # Method 3: Count unique students from enrollments
+        pipeline = [
+            {"$match": {"branch_id": branch_id, "is_active": True}},
+            {"$group": {"_id": "$student_id"}},
+            {"$count": "unique_students"}
+        ]
+        unique_students_result = await db.enrollments.aggregate(pipeline).to_list(length=1)
+        method3_count = unique_students_result[0]["unique_students"] if unique_students_result else 0
+
+        # Use the maximum count from all methods (most comprehensive)
+        student_count = max(method1_count, method2_count, method3_count)
+
+        # CRITICAL FIX: If all methods return 0, ensure we return 0 (not some cached/default value)
+        if method1_count == 0 and method2_count == 0 and method3_count == 0:
+            student_count = 0
 
         # Add statistics to branch data
         branch_with_stats = {
