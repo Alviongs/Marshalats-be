@@ -57,19 +57,51 @@ class DashboardController:
             filter_query["branch_id"] = branch_id
         
         try:
-            # Active students count
-            active_students = await db.users.count_documents({
-                "role": "student", 
-                "is_active": True,
-                **filter_query
-            })
+            # Active students count - Handle branch manager filtering correctly
+            if current_user["role"] == "branch_manager":
+                managed_branch_ids = filter_query.get("branch_id", {}).get("$in", [])
+                if managed_branch_ids:
+                    # Count students in managed branches
+                    active_students = await db.users.count_documents({
+                        "role": "student",
+                        "is_active": True,
+                        "branch_id": {"$in": managed_branch_ids}
+                    })
+
+                    # Also count students from enrollments if users don't have branch_id
+                    enrollment_students = await db.enrollments.find({
+                        "is_active": True,
+                        "branch_id": {"$in": managed_branch_ids}
+                    }).distinct("student_id")
+
+                    # Get unique student count from enrollments
+                    enrollment_student_count = len(set(enrollment_students)) if enrollment_students else 0
+
+                    # Use the higher count (some students might not have branch_id in users collection)
+                    active_students = max(active_students, enrollment_student_count)
+
+                    # Total users count for branch manager
+                    total_users = await db.users.count_documents({
+                        "is_active": True,
+                        "branch_id": {"$in": managed_branch_ids}
+                    })
+                else:
+                    active_students = 0
+                    total_users = 0
+            else:
+                # For other roles, use existing logic
+                active_students = await db.users.count_documents({
+                    "role": "student",
+                    "is_active": True,
+                    **filter_query
+                })
+
+                total_users = await db.users.count_documents({
+                    "is_active": True,
+                    **filter_query
+                })
+
             stats["active_students"] = active_students
-            
-            # Total users count
-            total_users = await db.users.count_documents({
-                "is_active": True,
-                **filter_query
-            })
             stats["total_users"] = total_users
             
             # Active courses count
@@ -143,54 +175,141 @@ class DashboardController:
             })
             stats["monthly_active_users"] = monthly_active_users
             
-            # Active enrollments
-            active_enrollments = await db.enrollments.count_documents({
-                "is_active": True,
-                **filter_query
-            })
+            # Active enrollments - Handle branch manager filtering correctly
+            if current_user["role"] == "branch_manager":
+                managed_branch_ids = filter_query.get("branch_id", {}).get("$in", [])
+                if managed_branch_ids:
+                    active_enrollments = await db.enrollments.count_documents({
+                        "is_active": True,
+                        "branch_id": {"$in": managed_branch_ids}
+                    })
+                else:
+                    active_enrollments = 0
+            else:
+                active_enrollments = await db.enrollments.count_documents({
+                    "is_active": True,
+                    **filter_query
+                })
             stats["active_enrollments"] = active_enrollments
             
-            # Revenue calculation (from payments)
-            revenue_pipeline = [
-                {"$match": {"payment_status": "completed", **filter_query}},
-                {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
-            ]
-            revenue_result = await db.payments.aggregate(revenue_pipeline).to_list(length=1)
-            total_revenue = revenue_result[0]["total"] if revenue_result else 0
+            # Revenue calculation (from payments) - Handle both "completed" and "paid" status
+            # For branch managers, we need to get students from enrollments since payments don't have branch_id
+            if current_user["role"] == "branch_manager":
+                managed_branch_ids = filter_query.get("branch_id", {}).get("$in", [])
+
+                if managed_branch_ids:
+                    # Get students from enrollments in managed branches
+                    enrollment_students = await db.enrollments.find({
+                        "is_active": True,
+                        "branch_id": {"$in": managed_branch_ids}
+                    }).distinct("student_id")
+
+                    # Also get students directly assigned to branches
+                    branch_students = await db.users.find({
+                        "role": "student",
+                        "is_active": True,
+                        "branch_id": {"$in": managed_branch_ids}
+                    }).to_list(length=None)
+
+                    direct_student_ids = [student["id"] for student in branch_students]
+                    all_student_ids = list(set(enrollment_students + direct_student_ids))
+
+                    if all_student_ids:
+                        # Calculate total revenue
+                        revenue_pipeline = [
+                            {"$match": {
+                                "payment_status": {"$in": ["completed", "paid"]},
+                                "student_id": {"$in": all_student_ids}
+                            }},
+                            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+                        ]
+                        revenue_result = await db.payments.aggregate(revenue_pipeline).to_list(length=1)
+                        total_revenue = revenue_result[0]["total"] if revenue_result else 0
+
+                        # Calculate monthly revenue
+                        current_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                        monthly_revenue_pipeline = [
+                            {
+                                "$match": {
+                                    "payment_status": {"$in": ["completed", "paid"]},
+                                    "payment_date": {"$gte": current_month_start},
+                                    "student_id": {"$in": all_student_ids}
+                                }
+                            },
+                            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+                        ]
+                        monthly_revenue_result = await db.payments.aggregate(monthly_revenue_pipeline).to_list(length=1)
+                        monthly_revenue = monthly_revenue_result[0]["total"] if monthly_revenue_result else 0
+
+                        # Count pending payments
+                        pending_payments = await db.payments.count_documents({
+                            "payment_status": "pending",
+                            "student_id": {"$in": all_student_ids}
+                        })
+                    else:
+                        total_revenue = 0
+                        monthly_revenue = 0
+                        pending_payments = 0
+                else:
+                    total_revenue = 0
+                    monthly_revenue = 0
+                    pending_payments = 0
+            else:
+                # For other roles (super_admin, coach_admin), use branch_id filtering
+                revenue_pipeline = [
+                    {"$match": {"payment_status": {"$in": ["completed", "paid"]}, **filter_query}},
+                    {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+                ]
+                revenue_result = await db.payments.aggregate(revenue_pipeline).to_list(length=1)
+                total_revenue = revenue_result[0]["total"] if revenue_result else 0
+
+                # Monthly revenue
+                current_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                monthly_revenue_pipeline = [
+                    {
+                        "$match": {
+                            "payment_status": {"$in": ["completed", "paid"]},
+                            "payment_date": {"$gte": current_month_start},
+                            **filter_query
+                        }
+                    },
+                    {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+                ]
+                monthly_revenue_result = await db.payments.aggregate(monthly_revenue_pipeline).to_list(length=1)
+                monthly_revenue = monthly_revenue_result[0]["total"] if monthly_revenue_result else 0
+
+                # Pending payments
+                pending_payments = await db.payments.count_documents({
+                    "payment_status": "pending",
+                    **filter_query
+                })
+
             stats["total_revenue"] = total_revenue
-            
-            # Monthly revenue (current month)
-            current_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            monthly_revenue_pipeline = [
-                {
-                    "$match": {
-                        "payment_status": "completed",
-                        "payment_date": {"$gte": current_month_start},
-                        **filter_query
-                    }
-                },
-                {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
-            ]
-            monthly_revenue_result = await db.payments.aggregate(monthly_revenue_pipeline).to_list(length=1)
-            monthly_revenue = monthly_revenue_result[0]["total"] if monthly_revenue_result else 0
             stats["monthly_revenue"] = monthly_revenue
-            
-            # Pending payments
-            pending_payments = await db.payments.count_documents({
-                "payment_status": "pending",
-                **filter_query
-            })
             stats["pending_payments"] = pending_payments
             
-            # Today's attendance
+            # Today's attendance - Handle branch manager filtering correctly
             today = datetime.utcnow().date()
-            today_attendance = await db.attendance.count_documents({
-                "attendance_date": {
-                    "$gte": datetime.combine(today, datetime.min.time()),
-                    "$lt": datetime.combine(today + timedelta(days=1), datetime.min.time())
-                },
-                **filter_query
-            })
+            if current_user["role"] == "branch_manager":
+                managed_branch_ids = filter_query.get("branch_id", {}).get("$in", [])
+                if managed_branch_ids:
+                    today_attendance = await db.attendance.count_documents({
+                        "attendance_date": {
+                            "$gte": datetime.combine(today, datetime.min.time()),
+                            "$lt": datetime.combine(today + timedelta(days=1), datetime.min.time())
+                        },
+                        "branch_id": {"$in": managed_branch_ids}
+                    })
+                else:
+                    today_attendance = 0
+            else:
+                today_attendance = await db.attendance.count_documents({
+                    "attendance_date": {
+                        "$gte": datetime.combine(today, datetime.min.time()),
+                        "$lt": datetime.combine(today + timedelta(days=1), datetime.min.time())
+                    },
+                    **filter_query
+                })
             stats["today_attendance"] = today_attendance
             
             return {"dashboard_stats": stats}
