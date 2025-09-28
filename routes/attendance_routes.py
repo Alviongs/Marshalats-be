@@ -30,25 +30,27 @@ async def get_attendance_reports(
 async def get_student_attendance(
     branch_id: Optional[str] = Query(None),
     course_id: Optional[str] = Query(None),
+    date: Optional[str] = Query(None, description="Single date in ISO format (YYYY-MM-DD)"),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH, UserRole.BRANCH_MANAGER]))
 ):
     """Get student attendance data"""
     return await AttendanceController.get_student_attendance(
-        branch_id, course_id, start_date, end_date, current_user
+        branch_id, course_id, date, start_date, end_date, current_user
     )
 
 @router.get("/coaches")
 async def get_coach_attendance(
     branch_id: Optional[str] = Query(None),
+    date: Optional[str] = Query(None, description="Single date in ISO format (YYYY-MM-DD)"),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
 ):
     """Get coach attendance data"""
     return await AttendanceController.get_coach_attendance(
-        branch_id, start_date, end_date, current_user
+        branch_id, date, start_date, end_date, current_user
     )
 
 @router.get("/stats")
@@ -122,6 +124,15 @@ async def mark_branch_manager_attendance(
 ):
     """Mark attendance for a branch manager"""
     return await AttendanceController.mark_branch_manager_attendance(attendance_data, current_user)
+
+@router.get("/branch-manager/{branch_manager_id}/students/attendance")
+async def get_branch_manager_students_attendance(
+    branch_manager_id: str,
+    date: str = Query(..., description="Date in ISO format (YYYY-MM-DD)"),
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER]))
+):
+    """Get students in branch manager's branches with their attendance for a specific date"""
+    return await AttendanceController.get_branch_manager_students_attendance(branch_manager_id, date, current_user)
 
 @router.post("/mark")
 async def mark_comprehensive_attendance(

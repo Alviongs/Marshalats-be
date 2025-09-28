@@ -145,6 +145,7 @@ class AttendanceController:
     async def get_student_attendance(
         branch_id: Optional[str] = None,
         course_id: Optional[str] = None,
+        date: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         current_user: dict = None
@@ -178,8 +179,17 @@ class AttendanceController:
             if course_id:
                 filter_query["course_id"] = course_id
 
-            # Date range filtering
-            if start_date and end_date:
+            # Date filtering - single date takes precedence over date range
+            if date:
+                try:
+                    # Parse single date and create range for the entire day
+                    date_dt = datetime.fromisoformat(date.replace('Z', '+00:00'))
+                    start_of_day = date_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+                    end_of_day = date_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+                    filter_query["attendance_date"] = {"$gte": start_of_day, "$lte": end_of_day}
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid date format")
+            elif start_date and end_date:
                 try:
                     start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
                     end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
@@ -187,69 +197,160 @@ class AttendanceController:
                 except ValueError:
                     raise HTTPException(status_code=400, detail="Invalid date format")
 
-            # Get students with attendance statistics
-            pipeline = [
-                {"$match": filter_query},
-                {
-                    "$group": {
-                        "_id": "$student_id",
-                        "total_sessions": {"$sum": 1},
-                        "present_sessions": {"$sum": {"$cond": ["$is_present", 1, 0]}},
-                        "last_attendance": {"$max": "$attendance_date"},
-                        "branch_ids": {"$addToSet": "$branch_id"},
-                        "course_ids": {"$addToSet": "$course_id"}
-                    }
-                },
-                {
-                    "$lookup": {
-                        "from": "users",
-                        "localField": "_id",
-                        "foreignField": "id",
-                        "as": "student_info"
-                    }
-                },
-                {"$unwind": {"path": "$student_info", "preserveNullAndEmptyArrays": True}},
-                {
-                    "$project": {
-                        "student_id": "$_id",
-                        "student_name": {"$ifNull": ["$student_info.full_name", {"$concat": ["$student_info.first_name", " ", "$student_info.last_name"]}]},
-                        "email": "$student_info.email",
-                        "phone": "$student_info.phone",
-                        "total_sessions": 1,
-                        "present_sessions": 1,
-                        "attendance_percentage": {
-                            "$multiply": [
-                                {"$divide": ["$present_sessions", "$total_sessions"]},
-                                100
-                            ]
-                        },
-                        "last_attendance": 1,
-                        "branch_count": {"$size": "$branch_ids"},
-                        "course_count": {"$size": "$course_ids"}
-                    }
-                },
-                {"$sort": {"attendance_percentage": -1}}
-            ]
+            # If single date is provided, return format compatible with specific endpoints
+            if date:
+                # Get all students based on role-based filtering
+                student_filter = {"role": "student", "is_active": True}
+                students = await db.users.find(student_filter).to_list(length=None)
 
-            student_attendance = await db.attendance.aggregate(pipeline).to_list(length=1000)
+                # Get student IDs for enrollment filtering
+                student_ids = [student["id"] for student in students]
 
-            # Convert to serializable format
-            serialized_students = []
-            for student in student_attendance:
-                serialized_student = {}
-                for key, value in student.items():
-                    if key == "_id":
-                        continue
-                    elif hasattr(value, 'isoformat'):
-                        serialized_student[key] = value.isoformat()
-                    else:
-                        serialized_student[key] = value
-                serialized_students.append(serialized_student)
+                # Build enrollment filter based on role
+                enrollment_filter = {"student_id": {"$in": student_ids}}
+                if managed_branch_ids:
+                    enrollment_filter["branch_id"] = {"$in": managed_branch_ids}
+                elif branch_id:
+                    enrollment_filter["branch_id"] = branch_id
 
-            return {
-                "students": serialized_students,
-                "total": len(serialized_students)
-            }
+                # Get matching enrollments
+                enrollments = await db.enrollments.find(enrollment_filter).to_list(length=None)
+
+                # Filter students based on enrollment matches
+                enrolled_student_ids = set(enrollment["student_id"] for enrollment in enrollments)
+                students = [student for student in students if student["id"] in enrolled_student_ids]
+
+                # Get attendance records for the specific date
+                attendance_records = await db.attendance.find(filter_query).to_list(length=None)
+
+                # Create a map of student attendance
+                attendance_map = {}
+                for record in attendance_records:
+                    student_id = record.get("student_id")
+                    if student_id:
+                        # Use stored status if available, otherwise fall back to is_present logic
+                        stored_status = record.get("status")
+                        if stored_status:
+                            status = stored_status
+                        else:
+                            # Fallback for old records without status field
+                            status = "present" if record.get("is_present") else "absent"
+
+                        attendance_map[student_id] = {
+                            "status": status,
+                            "check_in_time": record.get("check_in_time"),
+                            "check_out_time": record.get("check_out_time"),
+                            "notes": record.get("notes", ""),
+                            "marked_by": record.get("marked_by")
+                        }
+
+                # Combine student data with attendance and course information
+                result_students = []
+                for student in students:
+                    student_id = student.get("id")
+                    attendance_info = attendance_map.get(student_id, {
+                        "status": "absent",  # Default to absent if no record
+                        "check_in_time": None,
+                        "check_out_time": None,
+                        "notes": "",
+                        "marked_by": None
+                    })
+
+                    # Get student's enrollments for course information
+                    student_enrollments = [e for e in enrollments if e["student_id"] == student_id]
+                    courses = []
+
+                    for enrollment in student_enrollments:
+                        # Get course details
+                        course = await db.courses.find_one({"id": enrollment["course_id"]})
+                        if course:
+                            courses.append({
+                                "id": course["id"],
+                                "name": course.get("name", course.get("title", "Unknown Course")),
+                                "course_id": course["id"],
+                                "course_name": course.get("name", course.get("title", "Unknown Course"))
+                            })
+
+                    result_students.append({
+                        "id": student_id,
+                        "full_name": student.get("full_name", "Unknown"),
+                        "email": student.get("email", ""),
+                        "branch_id": student_enrollments[0]["branch_id"] if student_enrollments else None,
+                        "courses": courses,
+                        "attendance": attendance_info
+                    })
+
+                return {
+                    "students": result_students,
+                    "date": date,
+                    "total": len(result_students),
+                    "attendance_marked": len([s for s in result_students if s["attendance"]["status"] != "absent"])
+                }
+
+            else:
+                # Original aggregated statistics format for date ranges or no date filter
+                pipeline = [
+                    {"$match": filter_query},
+                    {
+                        "$group": {
+                            "_id": "$student_id",
+                            "total_sessions": {"$sum": 1},
+                            "present_sessions": {"$sum": {"$cond": ["$is_present", 1, 0]}},
+                            "last_attendance": {"$max": "$attendance_date"},
+                            "branch_ids": {"$addToSet": "$branch_id"},
+                            "course_ids": {"$addToSet": "$course_id"}
+                        }
+                    },
+                    {
+                        "$lookup": {
+                            "from": "users",
+                            "localField": "_id",
+                            "foreignField": "id",
+                            "as": "student_info"
+                        }
+                    },
+                    {"$unwind": {"path": "$student_info", "preserveNullAndEmptyArrays": True}},
+                    {
+                        "$project": {
+                            "student_id": "$_id",
+                            "student_name": {"$ifNull": ["$student_info.full_name", {"$concat": ["$student_info.first_name", " ", "$student_info.last_name"]}]},
+                            "email": "$student_info.email",
+                            "phone": "$student_info.phone",
+                            "total_sessions": 1,
+                            "present_sessions": 1,
+                            "attendance_percentage": {
+                                "$multiply": [
+                                    {"$divide": ["$present_sessions", "$total_sessions"]},
+                                    100
+                                ]
+                            },
+                            "last_attendance": 1,
+                            "branch_count": {"$size": "$branch_ids"},
+                            "course_count": {"$size": "$course_ids"}
+                        }
+                    },
+                    {"$sort": {"attendance_percentage": -1}}
+                ]
+
+                student_attendance = await db.attendance.aggregate(pipeline).to_list(length=1000)
+
+                # Convert to serializable format
+                serialized_students = []
+                for student in student_attendance:
+                    serialized_student = {}
+                    for key, value in student.items():
+                        if key == "_id":
+                            continue
+                        elif hasattr(value, 'isoformat'):
+                            serialized_student[key] = value.isoformat()
+                        else:
+                            serialized_student[key] = value
+                    serialized_students.append(serialized_student)
+
+                return {
+                    "students": serialized_students,
+                    "total": len(serialized_students)
+                }
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get student attendance: {str(e)}")
@@ -257,6 +358,7 @@ class AttendanceController:
     @staticmethod
     async def get_coach_attendance(
         branch_id: Optional[str] = None,
+        date: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         current_user: dict = None
@@ -297,7 +399,17 @@ class AttendanceController:
                 # Build attendance filter
                 attendance_filter = {"coach_id": coach_id}
 
-                if start_date and end_date:
+                # Date filtering - single date takes precedence over date range
+                if date:
+                    try:
+                        # Parse single date and create range for the entire day
+                        date_dt = datetime.fromisoformat(date.replace('Z', '+00:00'))
+                        start_of_day = date_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+                        end_of_day = date_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+                        attendance_filter["attendance_date"] = {"$gte": start_of_day, "$lte": end_of_day}
+                    except ValueError:
+                        raise HTTPException(status_code=400, detail="Invalid date format")
+                elif start_date and end_date:
                     try:
                         start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
                         end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
@@ -929,6 +1041,135 @@ class AttendanceController:
             raise HTTPException(status_code=500, detail=f"Failed to get coach students attendance: {str(e)}")
 
     @staticmethod
+    async def get_branch_manager_students_attendance(branch_manager_id: str, date: str, current_user: dict):
+        """Get students in branch manager's branches with their attendance for a specific date"""
+        try:
+            db = get_db()
+            if db is None:
+                raise HTTPException(status_code=500, detail="Database connection not available")
+
+            # Verify branch manager access
+            if current_user.get("role") == "branch_manager" and current_user.get("id") != branch_manager_id:
+                raise HTTPException(status_code=403, detail="Access denied: Can only view your own branch students")
+
+            # Parse the date
+            try:
+                target_date = datetime.fromisoformat(date.replace('Z', '+00:00'))
+                start_of_day = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                end_of_day = target_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid date format")
+
+            # Get branch manager information and their managed branches
+            branch_manager = await db.branch_managers.find_one({"id": branch_manager_id, "is_active": True})
+            if not branch_manager:
+                raise HTTPException(status_code=404, detail="Branch manager not found")
+
+            # Get the branch assigned to this branch manager (prioritize branch_assignment.branch_id)
+            assigned_branch_id = branch_manager.get("branch_assignment", {}).get("branch_id") or branch_manager.get("branch_id")
+            if not assigned_branch_id:
+                return {"students": [], "date": date, "total": 0, "attendance_marked": 0}
+
+            # Verify the branch exists and is active
+            assigned_branch = await db.branches.find_one({"id": assigned_branch_id, "is_active": True})
+            if not assigned_branch:
+                return {"students": [], "date": date, "total": 0, "attendance_marked": 0}
+
+            managed_branch_ids = [assigned_branch_id]
+
+            # Get all students enrolled in courses in these branches
+            # Match coach API behavior - don't require is_active=True for enrollments
+            enrollments = await db.enrollments.find({
+                "branch_id": {"$in": managed_branch_ids}
+            }).to_list(length=1000)
+
+            if not enrollments:
+                return {"students": [], "date": date, "total": 0, "attendance_marked": 0}
+
+            # Get student details and their attendance for the specific date
+            result_students = []
+            for enrollment in enrollments:
+                student_id = enrollment.get("student_id")
+                course_id = enrollment.get("course_id")
+                branch_id = enrollment.get("branch_id")
+
+                # Get student information
+                student = await db.users.find_one({"id": student_id, "is_active": True})
+                if not student:
+                    continue
+
+                # Get course information
+                course = await db.courses.find_one({"id": course_id})
+                course_name = "Unknown Course"
+                if course:
+                    # Prioritize title field, then name field
+                    course_name = course.get("title") or course.get("name") or course.get("course_name") or "Unknown Course"
+
+                # Get branch information
+                branch = await db.branches.find_one({"id": branch_id})
+                branch_name = branch.get("branch", {}).get("name", "Unknown Branch") if branch else "Unknown Branch"
+
+                # Get the most recent attendance record for this specific date
+                # Sort by updated_at (if exists) then created_at to get the latest update
+                attendance_record = await db.attendance.find_one(
+                    {
+                        "student_id": student_id,
+                        "course_id": course_id,
+                        "branch_id": branch_id,
+                        "attendance_date": {
+                            "$gte": start_of_day,
+                            "$lt": end_of_day
+                        }
+                    },
+                    sort=[
+                        ("updated_at", -1),  # Most recent update first
+                        ("created_at", -1)   # Then most recent creation
+                    ]
+                )
+
+                # Prepare attendance data
+                attendance_data = {
+                    "status": "not_marked",
+                    "check_in_time": None,
+                    "check_out_time": None,
+                    "notes": "",
+                    "marked_by": None
+                }
+
+                if attendance_record:
+                    attendance_data = {
+                        "status": attendance_record.get("status", "present" if attendance_record.get("is_present") else "absent"),
+                        "check_in_time": attendance_record.get("check_in_time").isoformat() if attendance_record.get("check_in_time") else None,
+                        "check_out_time": attendance_record.get("check_out_time").isoformat() if attendance_record.get("check_out_time") else None,
+                        "notes": attendance_record.get("notes", ""),
+                        "marked_by": attendance_record.get("marked_by")
+                    }
+
+                student_data = {
+                    "student_id": student_id,
+                    "student_name": student.get("full_name") or f"{student.get('first_name', '')} {student.get('last_name', '')}".strip(),
+                    "email": student.get("email"),
+                    "phone": student.get("phone"),
+                    "course_id": course_id,
+                    "course_name": course_name,
+                    "branch_id": branch_id,
+                    "branch_name": branch_name,
+                    "attendance": attendance_data
+                }
+
+                result_students.append(student_data)
+
+            return {
+                "students": result_students,
+                "date": date,
+                "total": len(result_students),
+                "attendance_marked": len([s for s in result_students if s["attendance"]["status"] != "not_marked"])
+            }
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to get branch manager students attendance: {str(e)}")
+
+    @staticmethod
     async def mark_comprehensive_attendance(attendance_request: AttendanceMarkRequest, current_user: dict):
         """Mark attendance for any user type (student, coach, branch_manager)"""
         try:
@@ -959,15 +1200,22 @@ class AttendanceController:
 
                 print(f"🔍 Checking for existing attendance: student_id={user_id}, course_id={attendance_request.course_id}, date_range={attendance_date_start} to {attendance_date_end}")
 
-                existing = await db.attendance.find_one({
-                    "student_id": user_id,
-                    "course_id": attendance_request.course_id,
-                    "branch_id": attendance_request.branch_id,
-                    "attendance_date": {
-                        "$gte": attendance_date_start,
-                        "$lt": attendance_date_end
-                    }
-                })
+                # Find the most recent existing attendance record for this date
+                existing = await db.attendance.find_one(
+                    {
+                        "student_id": user_id,
+                        "course_id": attendance_request.course_id,
+                        "branch_id": attendance_request.branch_id,
+                        "attendance_date": {
+                            "$gte": attendance_date_start,
+                            "$lt": attendance_date_end
+                        }
+                    },
+                    sort=[
+                        ("updated_at", -1),  # Most recent update first
+                        ("created_at", -1)   # Then most recent creation
+                    ]
+                )
 
                 if existing:
                     print(f"📝 Found existing attendance record: {existing['id']} - updating instead of creating duplicate")
