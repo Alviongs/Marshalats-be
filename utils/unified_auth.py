@@ -55,21 +55,29 @@ async def get_current_user_or_superadmin(credentials: HTTPAuthorizationCredentia
             manager_data = serialize_doc(branch_manager)
             manager_data["role"] = "branch_manager"  # Set role for UserRole enum
 
-            # Find all branches managed by this branch manager
-            managed_branches = await db.branches.find({"manager_id": user_id, "is_active": True}).to_list(length=None)
-            managed_branch_ids = [branch["id"] for branch in managed_branches]
+            # First try to get managed branches from JWT token (more efficient)
+            jwt_managed_branches = payload.get("managed_branches", [])
+            if jwt_managed_branches:
+                manager_data["managed_branches"] = jwt_managed_branches
+                print(f"Using managed branches from JWT token: {jwt_managed_branches}")
+            else:
+                # Fallback: Find all branches managed by this branch manager from database
+                managed_branches = await db.branches.find({"manager_id": user_id, "is_active": True}).to_list(length=None)
+                managed_branch_ids = [branch["id"] for branch in managed_branches]
 
-            # Add managed branches to the manager data for payment filtering
-            manager_data["managed_branches"] = managed_branch_ids
+                # Add managed branches to the manager data for payment filtering
+                manager_data["managed_branches"] = managed_branch_ids
+                print(f"Using managed branches from database: {managed_branch_ids}")
 
-            # Fallback: If no branches found by manager_id, try the branch_assignment approach
-            if not managed_branch_ids:
-                branch_assignment = manager_data.get("branch_assignment")
-                if branch_assignment and branch_assignment.get("branch_id"):
-                    # Try to find the branch by ID from branch_assignment
-                    fallback_branch = await db.branches.find_one({"id": branch_assignment["branch_id"], "is_active": True})
-                    if fallback_branch:
-                        manager_data["managed_branches"] = [fallback_branch["id"]]
+                # Fallback: If no branches found by manager_id, try the branch_assignment approach
+                if not managed_branch_ids:
+                    branch_assignment = manager_data.get("branch_assignment")
+                    if branch_assignment and branch_assignment.get("branch_id"):
+                        # Try to find the branch by ID from branch_assignment
+                        fallback_branch = await db.branches.find_one({"id": branch_assignment["branch_id"], "is_active": True})
+                        if fallback_branch:
+                            manager_data["managed_branches"] = [fallback_branch["id"]]
+                            print(f"Using managed branches from branch assignment: {[fallback_branch['id']]}")
 
             return manager_data
 

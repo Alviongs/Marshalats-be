@@ -527,14 +527,21 @@ This is an automated message. Please do not reply to this email.
                     detail="Account is inactive. Please contact administrator."
                 )
 
-            # Create access token
+            # Find all branches managed by this branch manager
+            managed_branches = await db.branches.find({"manager_id": manager["id"], "is_active": True}).to_list(length=None)
+            managed_branch_ids = [branch["id"] for branch in managed_branches]
+
+            print(f"Branch manager {manager['id']} manages branches: {managed_branch_ids}")
+
+            # Create access token with managed branches
             access_token_expires = 60 * 24  # 24 hours in minutes
             access_token = create_access_token(
                 data={
                     "sub": manager["id"],
                     "email": manager["email"],
                     "role": "branch_manager",
-                    "branch_manager_id": manager["id"]
+                    "branch_manager_id": manager["id"],
+                    "managed_branches": managed_branch_ids
                 }
             )
 
@@ -546,6 +553,9 @@ This is an automated message. Please do not reply to this email.
                 del manager_data["reset_token"]
             if "reset_token_expiry" in manager_data:
                 del manager_data["reset_token_expiry"]
+
+            # Add managed branches to the response
+            manager_data["managed_branches"] = managed_branch_ids
 
             return {
                 "access_token": access_token,

@@ -28,9 +28,28 @@ class ReportsController:
 
         # Build filter query based on user role and parameters
         filter_query = {}
-        if current_user["role"] == "coach_admin" and current_user.get("branch_id"):
+        current_role = current_user.get("role")
+
+        if current_role == "coach_admin" and current_user.get("branch_id"):
+            # Coach admins can only see payments from their branch
             filter_query["branch_details.branch_id"] = current_user["branch_id"]
+        elif current_role == "branch_manager":
+            # Branch managers can only see payments from their managed branches
+            managed_branches = current_user.get("managed_branches", [])
+            branch_assignment = current_user.get("branch_assignment", {})
+            managed_branch_id = branch_assignment.get("branch_id")
+
+            if managed_branches:
+                # Use managed_branches array if available
+                filter_query["branch_details.branch_id"] = {"$in": managed_branches}
+            elif managed_branch_id:
+                # Fallback to single branch assignment
+                filter_query["branch_details.branch_id"] = managed_branch_id
+            else:
+                # If no branches are managed, return empty result
+                filter_query["branch_details.branch_id"] = {"$in": []}
         elif branch_id and branch_id != "all":
+            # For superadmin and other roles, allow branch filtering
             filter_query["branch_details.branch_id"] = branch_id
 
         # Add payment type filter
@@ -1388,9 +1407,40 @@ class ReportsController:
         skip: int = 0,
         limit: int = 20
     ):
-        """Get course reports with filtering and search"""
+        """Get course reports with filtering and search - matches branches page filtering pattern"""
         try:
             db = get_db()
+
+            # Apply role-based filtering using the same pattern as branches page
+            managed_branch_ids = []
+            current_role = current_user.get("role")
+
+            if current_role == "branch_manager":
+                # Use the same pattern as branches controller
+                managed_branch_ids = current_user.get("managed_branches", [])
+
+                if not managed_branch_ids:
+                    # Return empty result if no branches are managed (same as branches page)
+                    return {
+                        "courses": [],
+                        "pagination": {"total": 0, "skip": skip, "limit": limit, "has_more": False},
+                        "summary": {"total_courses": 0, "active_courses": 0, "total_enrollments": 0, "active_enrollments": 0},
+                        "message": "No branches assigned to this manager"
+                    }
+
+                # Validate branch_id if provided (same as branches page logic)
+                if branch_id and branch_id not in managed_branch_ids:
+                    return {
+                        "courses": [],
+                        "pagination": {"total": 0, "skip": skip, "limit": limit, "has_more": False},
+                        "summary": {"total_courses": 0, "active_courses": 0, "total_enrollments": 0, "active_enrollments": 0},
+                        "message": "Access denied: Branch not managed by this branch manager"
+                    }
+
+                print(f"Branch manager {current_user.get('id')} filtering by managed branches: {managed_branch_ids}")
+            elif current_role == "coach_admin" and current_user.get("branch_id"):
+                # Coach admin filtering (existing logic)
+                managed_branch_ids = [current_user["branch_id"]]
 
             # Build course filter
             course_filter = {}
@@ -1401,13 +1451,13 @@ class ReportsController:
             if difficulty_level:
                 course_filter["difficulty_level"] = difficulty_level
 
-            # Search filter
+            # Search filter - handle missing fields gracefully
             if search:
                 search_regex = {"$regex": search, "$options": "i"}
                 course_filter["$or"] = [
                     {"title": search_regex},
-                    {"code": search_regex},
-                    {"description": search_regex}
+                    {"code": {"$exists": True, "$regex": search, "$options": "i"}},
+                    {"description": {"$exists": True, "$regex": search, "$options": "i"}}
                 ]
 
             # Build aggregation pipeline
@@ -1428,28 +1478,70 @@ class ReportsController:
                         "foreignField": "course_id",
                         "as": "enrollments"
                     }
-                },
-                {
-                    "$addFields": {
-                        "category_name": {"$arrayElemAt": ["$category.name", 0]},
-                        "total_enrollments": {"$size": "$enrollments"},
-                        "active_enrollments": {
-                            "$size": {
+                }
+            ]
+
+            # Add branch filtering based on user role and permissions
+            if current_user["role"] == "branch_manager":
+                # For branch managers, filter enrollments to only include their managed branches
+                if branch_id:
+                    # Specific branch requested
+                    pipeline.append({
+                        "$addFields": {
+                            "enrollments": {
                                 "$filter": {
                                     "input": "$enrollments",
-                                    "cond": {"$eq": ["$$this.is_active", True]}
+                                    "cond": {"$eq": ["$$this.branch_id", branch_id]}
                                 }
+                            }
+                        }
+                    })
+                else:
+                    # Filter by all managed branches
+                    pipeline.append({
+                        "$addFields": {
+                            "enrollments": {
+                                "$filter": {
+                                    "input": "$enrollments",
+                                    "cond": {"$in": ["$$this.branch_id", managed_branch_ids]}
+                                }
+                            }
+                        }
+                    })
+            elif branch_id:
+                # For other roles with specific branch filter
+                pipeline.append({
+                    "$addFields": {
+                        "enrollments": {
+                            "$filter": {
+                                "input": "$enrollments",
+                                "cond": {"$eq": ["$$this.branch_id", branch_id]}
+                            }
+                        }
+                    }
+                })
+
+            # Add enrollment statistics
+            pipeline.append({
+                "$addFields": {
+                    "category_name": {"$arrayElemAt": ["$category.name", 0]},
+                    "total_enrollments": {"$size": "$enrollments"},
+                    "active_enrollments": {
+                        "$size": {
+                            "$filter": {
+                                "input": "$enrollments",
+                                "cond": {"$eq": ["$$this.is_active", True]}
                             }
                         }
                     }
                 }
-            ]
+            })
 
-            # Add branch filter if specified
-            if branch_id:
+            # For branch managers, only show courses that have enrollments in their managed branches
+            if current_user["role"] == "branch_manager":
                 pipeline.append({
                     "$match": {
-                        "enrollments.branch_id": branch_id
+                        "total_enrollments": {"$gt": 0}
                     }
                 })
 
@@ -1471,24 +1563,59 @@ class ReportsController:
 
             # Get total count for pagination
             count_pipeline = [
-                {"$match": course_filter}
+                {"$match": course_filter},
+                {
+                    "$lookup": {
+                        "from": "enrollments",
+                        "localField": "id",
+                        "foreignField": "course_id",
+                        "as": "enrollments"
+                    }
+                }
             ]
-            if branch_id:
-                count_pipeline.extend([
-                    {
-                        "$lookup": {
-                            "from": "enrollments",
-                            "localField": "id",
-                            "foreignField": "course_id",
-                            "as": "enrollments"
+
+            # Apply branch filtering for count
+            if current_user["role"] == "branch_manager":
+                if branch_id:
+                    count_pipeline.append({
+                        "$addFields": {
+                            "enrollments": {
+                                "$filter": {
+                                    "input": "$enrollments",
+                                    "cond": {"$eq": ["$$this.branch_id", branch_id]}
+                                }
+                            }
                         }
-                    },
-                    {
-                        "$match": {
-                            "enrollments.branch_id": branch_id
+                    })
+                else:
+                    count_pipeline.append({
+                        "$addFields": {
+                            "enrollments": {
+                                "$filter": {
+                                    "input": "$enrollments",
+                                    "cond": {"$in": ["$$this.branch_id", managed_branch_ids]}
+                                }
+                            }
+                        }
+                    })
+                # Only count courses with enrollments in managed branches
+                count_pipeline.append({
+                    "$match": {
+                        "enrollments": {"$ne": []}
+                    }
+                })
+            elif branch_id:
+                count_pipeline.append({
+                    "$addFields": {
+                        "enrollments": {
+                            "$filter": {
+                                "input": "$enrollments",
+                                "cond": {"$eq": ["$$this.branch_id", branch_id]}
+                            }
                         }
                     }
-                ])
+                })
+
             count_pipeline.append({"$count": "total"})
 
             count_result = await db.courses.aggregate(count_pipeline).to_list(length=1)
@@ -1505,9 +1632,9 @@ class ReportsController:
                     branch_enrollments = course.get("enrollments", [])
 
                 formatted_course = {
-                    "id": course["id"],
-                    "title": course["title"],
-                    "code": course["code"],
+                    "id": course.get("id", "unknown"),
+                    "title": course.get("title", "Unknown Course"),
+                    "code": course.get("code", "N/A"),
                     "description": course.get("description", ""),
                     "difficulty_level": course.get("difficulty_level", ""),
                     "category_name": course.get("category_name", "Unknown"),
@@ -1550,7 +1677,26 @@ class ReportsController:
 
             # Get branches (filtered by user role)
             branch_filter = {}
-            if current_user["role"] == "coach_admin" and current_user.get("branch_id"):
+            managed_branch_ids = []
+
+            if current_user["role"] == "branch_manager":
+                managed_branch_ids = current_user.get("managed_branches", [])
+                if not managed_branch_ids:
+                    return {
+                        "filters": {
+                            "branches": [],
+                            "categories": [],
+                            "difficulty_levels": [],
+                            "active_status": [
+                                {"id": "true", "name": "Active Only"},
+                                {"id": "false", "name": "Include Inactive"}
+                            ]
+                        },
+                        "message": "No branches assigned to this branch manager",
+                        "generated_at": dt.datetime.utcnow()
+                    }
+                branch_filter["id"] = {"$in": managed_branch_ids}
+            elif current_user["role"] == "coach_admin" and current_user.get("branch_id"):
                 branch_filter["id"] = current_user["branch_id"]
 
             branches_cursor = db.branches.find(branch_filter)
@@ -1599,6 +1745,8 @@ class ReportsController:
                         {"id": "false", "name": "Include Inactive"}
                     ]
                 },
+                "user_role": current_user["role"],
+                "managed_branches": managed_branch_ids if current_user["role"] == "branch_manager" else None,
                 "generated_at": dt.datetime.utcnow()
             }
 
