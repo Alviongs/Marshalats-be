@@ -1041,8 +1041,8 @@ class ReportsController:
         db = get_db()
 
         try:
-            # Build filter query
-            filter_query = {"role": "coach"}
+            # Build filter query - Query coaches collection instead of users collection
+            filter_query = {}
 
             # Apply role-based filtering
             if current_user["role"] == "coach_admin" and current_user.get("branch_id"):
@@ -1077,11 +1077,11 @@ class ReportsController:
                     {"personal_info.last_name": search_pattern}
                 ]
 
-            # Get total count for pagination
-            total_count = await db.users.count_documents(filter_query)
+            # Get total count for pagination - Query coaches collection
+            total_count = await db.coaches.count_documents(filter_query)
 
-            # Get coaches with pagination
-            coaches_cursor = db.users.find(filter_query).skip(skip).limit(limit)
+            # Get coaches with pagination - Query coaches collection
+            coaches_cursor = db.coaches.find(filter_query).skip(skip).limit(limit)
             coaches = await coaches_cursor.to_list(length=limit)
 
             # Process coaches data and join with related information
@@ -1094,8 +1094,8 @@ class ReportsController:
                     if branch_doc:
                         branch_info = {
                             "id": branch_doc["id"],
-                            "name": branch_doc["branch"]["name"],
-                            "code": branch_doc["branch"]["code"]
+                            "name": branch_doc.get("branch", {}).get("name", branch_doc.get("name", "")),
+                            "code": branch_doc.get("branch", {}).get("code", branch_doc.get("code", ""))
                         }
 
                 # Get course information
@@ -1114,14 +1114,14 @@ class ReportsController:
                         for course in courses
                     ]
 
-                # Build processed coach data
+                # Build processed coach data - Handle coaches collection structure
                 processed_coach = {
                     "id": coach["id"],
                     "full_name": coach.get("full_name", ""),
-                    "first_name": coach.get("personal_info", {}).get("first_name", ""),
-                    "last_name": coach.get("personal_info", {}).get("last_name", ""),
-                    "email": coach.get("contact_info", {}).get("email", ""),
-                    "phone": coach.get("contact_info", {}).get("phone", ""),
+                    "first_name": coach.get("personal_info", {}).get("first_name", coach.get("first_name", "")),
+                    "last_name": coach.get("personal_info", {}).get("last_name", coach.get("last_name", "")),
+                    "email": coach.get("contact_info", {}).get("email", coach.get("email", "")),
+                    "phone": coach.get("contact_info", {}).get("phone", coach.get("phone", "")),
                     "branch": branch_info,
                     "assigned_courses": course_details,
                     "areas_of_expertise": coach.get("areas_of_expertise", []),
@@ -1194,32 +1194,32 @@ class ReportsController:
                 for course in courses
             ]
 
-            # Get unique areas of expertise from coaches
+            # Get unique areas of expertise from coaches collection
             areas_pipeline = [
-                {"$match": {"role": "coach", "areas_of_expertise": {"$exists": True, "$ne": []}}},
+                {"$match": {"areas_of_expertise": {"$exists": True, "$ne": []}}},
                 {"$unwind": "$areas_of_expertise"},
                 {"$group": {"_id": "$areas_of_expertise"}},
                 {"$sort": {"_id": 1}}
             ]
-            areas_result = await db.users.aggregate(areas_pipeline).to_list(100)
+            areas_result = await db.coaches.aggregate(areas_pipeline).to_list(100)
             area_options = [{"id": area["_id"], "name": area["_id"]} for area in areas_result]
 
-            # Get unique professional experience levels
+            # Get unique professional experience levels from coaches collection
             experience_pipeline = [
-                {"$match": {"role": "coach", "professional_info.professional_experience": {"$exists": True, "$ne": None}}},
+                {"$match": {"professional_info.professional_experience": {"$exists": True, "$ne": None}}},
                 {"$group": {"_id": "$professional_info.professional_experience"}},
                 {"$sort": {"_id": 1}}
             ]
-            experience_result = await db.users.aggregate(experience_pipeline).to_list(20)
+            experience_result = await db.coaches.aggregate(experience_pipeline).to_list(20)
             experience_options = [{"id": exp["_id"], "name": exp["_id"]} for exp in experience_result]
 
-            # Get unique designations
+            # Get unique designations from coaches collection
             designation_pipeline = [
-                {"$match": {"role": "coach", "professional_info.designation_id": {"$exists": True, "$ne": None}}},
+                {"$match": {"professional_info.designation_id": {"$exists": True, "$ne": None}}},
                 {"$group": {"_id": "$professional_info.designation_id"}},
                 {"$sort": {"_id": 1}}
             ]
-            designation_result = await db.users.aggregate(designation_pipeline).to_list(20)
+            designation_result = await db.coaches.aggregate(designation_pipeline).to_list(20)
             designation_options = [{"id": des["_id"], "name": des["_id"]} for des in designation_result]
 
             return {
