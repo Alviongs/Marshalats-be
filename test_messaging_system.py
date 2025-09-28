@@ -11,7 +11,7 @@ from typing import Dict, List, Any
 from datetime import datetime
 
 # Test configuration
-BASE_URL = "http://localhost:8003"
+BASE_URL = "http://31.97.224.169:8003"
 TEST_USERS = {
     "student": {
         "email": "test.student@example.com",

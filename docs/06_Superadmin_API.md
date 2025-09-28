@@ -5,7 +5,7 @@ The Superadmin API provides dedicated endpoints for system administrators with e
 
 ## Base URL
 ```
-Development: http://localhost:8003/api/superadmin
+Development: http://31.97.224.169:8003/api/superadmin
 Production: https://edumanage-44.preview.dev.com/api/superadmin
 ```
 
@@ -427,7 +427,7 @@ Get comprehensive coach statistics and analytics.
 
 ### Superadmin Login
 ```bash
-curl -X POST "http://localhost:8003/api/superadmin/login" \
+curl -X POST "http://31.97.224.169:8003/api/superadmin/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@marshalats.com",
@@ -437,7 +437,7 @@ curl -X POST "http://localhost:8003/api/superadmin/login" \
 
 ### Create Coach as Superadmin
 ```bash
-curl -X POST "http://localhost:8003/api/superadmin/coaches" \
+curl -X POST "http://31.97.224.169:8003/api/superadmin/coaches" \
   -H "Authorization: Bearer <superadmin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -458,13 +458,13 @@ curl -X POST "http://localhost:8003/api/superadmin/coaches" \
 
 ### Get System Statistics
 ```bash
-curl -X GET "http://localhost:8003/api/superadmin/coaches/stats/overview" \
+curl -X GET "http://31.97.224.169:8003/api/superadmin/coaches/stats/overview" \
   -H "Authorization: Bearer <superadmin_token>"
 ```
 
 ### Verify Token
 ```bash
-curl -X GET "http://localhost:8003/api/superadmin/verify-token" \
+curl -X GET "http://31.97.224.169:8003/api/superadmin/verify-token" \
   -H "Authorization: Bearer <superadmin_token>"
 ```
 
