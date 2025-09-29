@@ -5,7 +5,7 @@ The Branch Management API provides comprehensive functionality for managing mart
 
 ## Base URL
 ```
-Development: http://31.97.224.169:8003/api/branches
+Development: http://localhost:8003/api/branches
 Production: https://edumanage-44.preview.dev.com/api/branches
 ```
 
@@ -20,7 +20,7 @@ To get a superadmin token for branch management:
 
 ```bash
 # Login as superadmin
-curl -X POST "http://31.97.224.169:8003/api/superadmin/login" \
+curl -X POST "http://localhost:8003/api/superadmin/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "superadmin@example.com",
@@ -449,7 +449,7 @@ Retrieve all holidays for a specific branch.
 
 ### Create a New Branch (Super Admin)
 ```bash
-curl -X POST "http://31.97.224.169:8003/api/branches" \
+curl -X POST "http://localhost:8003/api/branches" \
   -H "Authorization: Bearer <super_admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -490,13 +490,13 @@ curl -X POST "http://31.97.224.169:8003/api/branches" \
 
 ### Get All Branches
 ```bash
-curl -X GET "http://31.97.224.169:8003/api/branches?skip=0&limit=20" \
+curl -X GET "http://localhost:8003/api/branches?skip=0&limit=20" \
   -H "Authorization: Bearer <token>"
 ```
 
 ### Update Branch Information (Coach Admin)
 ```bash
-curl -X PUT "http://31.97.224.169:8003/api/branches/branch-uuid-here" \
+curl -X PUT "http://localhost:8003/api/branches/branch-uuid-here" \
   -H "Authorization: Bearer <coach_admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -513,7 +513,7 @@ curl -X PUT "http://31.97.224.169:8003/api/branches/branch-uuid-here" \
 
 ### Add Holiday to Branch
 ```bash
-curl -X POST "http://31.97.224.169:8003/api/branches/branch-uuid-here/holidays" \
+curl -X POST "http://localhost:8003/api/branches/branch-uuid-here/holidays" \
   -H "Authorization: Bearer <admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -553,7 +553,7 @@ curl -X POST "http://31.97.224.169:8003/api/branches/branch-uuid-here/holidays" 
 
 ### Step 1: Get Superadmin Token
 ```bash
-curl -X POST "http://31.97.224.169:8003/api/superadmin/login" \
+curl -X POST "http://localhost:8003/api/superadmin/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "superadmin@example.com",
@@ -563,7 +563,7 @@ curl -X POST "http://31.97.224.169:8003/api/superadmin/login" \
 
 ### Step 2: Create a Branch
 ```bash
-curl -X POST "http://31.97.224.169:8003/api/branches" \
+curl -X POST "http://localhost:8003/api/branches" \
   -H "Authorization: Bearer <token_from_step_1>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -605,19 +605,19 @@ curl -X POST "http://31.97.224.169:8003/api/branches" \
 
 ### Step 3: Retrieve All Branches
 ```bash
-curl -X GET "http://31.97.224.169:8003/api/branches" \
+curl -X GET "http://localhost:8003/api/branches" \
   -H "Authorization: Bearer <token_from_step_1>"
 ```
 
 ### Step 4: Get Specific Branch
 ```bash
-curl -X GET "http://31.97.224.169:8003/api/branches/<branch_id_from_step_2>" \
+curl -X GET "http://localhost:8003/api/branches/<branch_id_from_step_2>" \
   -H "Authorization: Bearer <token_from_step_1>"
 ```
 
 ### Step 5: Create Holiday for Branch
 ```bash
-curl -X POST "http://31.97.224.169:8003/api/branches/<branch_id>/holidays" \
+curl -X POST "http://localhost:8003/api/branches/<branch_id>/holidays" \
   -H "Authorization: Bearer <token_from_step_1>" \
   -H "Content-Type: application/json" \
   -d '{

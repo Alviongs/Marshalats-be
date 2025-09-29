@@ -56,10 +56,11 @@ async def get_coach_attendance(
 @router.get("/stats")
 async def get_attendance_stats(
     branch_id: Optional[str] = Query(None),
+    date: Optional[str] = Query(None, description="Single date in ISO format (YYYY-MM-DD)"),
     current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.BRANCH_MANAGER]))
 ):
-    """Get attendance statistics"""
-    return await AttendanceController.get_attendance_stats(branch_id, current_user)
+    """Get attendance statistics with optional date filtering"""
+    return await AttendanceController.get_attendance_stats(branch_id, date, current_user)
 
 @router.post("/manual")
 async def mark_manual_attendance(
@@ -141,3 +142,12 @@ async def mark_comprehensive_attendance(
 ):
     """Mark attendance for any user type (student, coach, branch_manager)"""
     return await AttendanceController.mark_comprehensive_attendance(attendance_request, current_user)
+
+@router.get("/student/my-attendance")
+async def get_my_attendance(
+    start_date: Optional[str] = Query(None, description="Start date in ISO format (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date in ISO format (YYYY-MM-DD)"),
+    current_user: dict = Depends(require_role_unified([UserRole.STUDENT]))
+):
+    """Get attendance data for the authenticated student"""
+    return await AttendanceController.get_student_my_attendance(current_user, start_date, end_date)
