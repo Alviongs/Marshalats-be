@@ -5,7 +5,7 @@ This document covers the remaining specialized APIs in the Marshalats Learning M
 
 ## Base URLs
 ```
-Development: http://localhost:8003/api
+Development: http://31.97.224.169:8003/api
 Production: https://edumanage-44.preview.dev.com/api
 ```
 
@@ -534,7 +534,7 @@ ateTime": "admin_notes": "Student has demonstrated proficiency. Course change ap
 
 ### Enroll Student in Course
 ```bash
-curl -X POST "http://localhost:8003/api/enrollments/students/enroll" \
+curl -X POST "http://31.97.224.169:8003/api/enrollments/students/enroll" \
   -H "Authorization: Bearer <student_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -546,7 +546,7 @@ curl -X POST "http://localhost:8003/api/enrollments/students/enroll" \
 
 ### Process Payment
 ```bash
-curl -X POST "http://localhost:8003/api/payments/students/payments" \
+curl -X POST "http://31.97.224.169:8003/api/payments/students/payments" \
   -H "Authorization: Bearer <student_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -559,7 +559,7 @@ curl -X POST "http://localhost:8003/api/payments/students/payments" \
 
 ### Create Event
 ```bash
-curl -X POST "http://localhost:8003/api/events" \
+curl -X POST "http://31.97.224.169:8003/api/events" \
   -H "Authorization: Bearer <admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -573,7 +573,7 @@ curl -X POST "http://localhost:8003/api/events" \
 
 ### Submit Transfer Request
 ```bash
-curl -X POST "http://localhost:8003/api/requests/transfer" \
+curl -X POST "http://31.97.224.169:8003/api/requests/transfer" \
   -H "Authorization: Bearer <student_token>" \
   -H "Content-Type: application/json" \
   -d '{

@@ -5,7 +5,7 @@ The Branch Manager API provides comprehensive functionality for managing branch 
 
 ## Base URL
 ```
-Development: http://localhost:8003/api/branch-managers
+Development: http://31.97.224.169:8003/api/branch-managers
 Production: https://edumanage-44.preview.dev.com/api/branch-managers
 ```
 
@@ -18,7 +18,7 @@ Authorization: Bearer <jwt_token>
 ### Getting Authentication Token
 To get a superadmin token for branch manager management:
 ```bash
-curl -X POST "http://localhost:8003/api/superadmin/login" \
+curl -X POST "http://31.97.224.169:8003/api/superadmin/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "pittisunilkumar3@gmail.com",
@@ -102,7 +102,7 @@ Creates a new branch manager with comprehensive nested structure.
 
 **Example:**
 ```bash
-curl -X POST "http://localhost:8003/api/branch-managers" \
+curl -X POST "http://31.97.224.169:8003/api/branch-managers" \
   -H "Authorization: Bearer <super_admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -173,7 +173,7 @@ Retrieves a paginated list of branch managers.
 
 **Example:**
 ```bash
-curl -X GET "http://localhost:8003/api/branch-managers?skip=0&limit=10&active_only=true" \
+curl -X GET "http://31.97.224.169:8003/api/branch-managers?skip=0&limit=10&active_only=true" \
   -H "Authorization: Bearer <super_admin_token>"
 ```
 
@@ -211,7 +211,7 @@ Retrieves a specific branch manager by ID.
 
 **Example:**
 ```bash
-curl -X GET "http://localhost:8003/api/branch-managers/manager-uuid" \
+curl -X GET "http://31.97.224.169:8003/api/branch-managers/manager-uuid" \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -228,7 +228,7 @@ Updates an existing branch manager.
 
 **Example:**
 ```bash
-curl -X PUT "http://localhost:8003/api/branch-managers/manager-uuid" \
+curl -X PUT "http://31.97.224.169:8003/api/branch-managers/manager-uuid" \
   -H "Authorization: Bearer <super_admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -259,7 +259,7 @@ Deletes a branch manager.
 
 **Example:**
 ```bash
-curl -X DELETE "http://localhost:8003/api/branch-managers/manager-uuid" \
+curl -X DELETE "http://31.97.224.169:8003/api/branch-managers/manager-uuid" \
   -H "Authorization: Bearer <super_admin_token>"
 ```
 
@@ -279,7 +279,7 @@ Sends login credentials to branch manager via email with secure password reset t
 
 **Example:**
 ```bash
-curl -X POST "http://localhost:8003/api/branch-managers/manager-uuid/send-credentials" \
+curl -X POST "http://31.97.224.169:8003/api/branch-managers/manager-uuid/send-credentials" \
   -H "Authorization: Bearer <super_admin_token>"
 ```
 
@@ -300,7 +300,7 @@ Gets the current authenticated branch manager's profile.
 
 **Example:**
 ```bash
-curl -X GET "http://localhost:8003/api/branch-managers/me" \
+curl -X GET "http://31.97.224.169:8003/api/branch-managers/me" \
   -H "Authorization: Bearer <branch_manager_token>"
 ```
 
@@ -389,13 +389,13 @@ curl -X GET "http://localhost:8003/api/branch-managers/me" \
 ### Test Branch Manager Creation
 ```bash
 # 1. Get superadmin token
-TOKEN=$(curl -s -X POST "http://localhost:8003/api/superadmin/login" \
+TOKEN=$(curl -s -X POST "http://31.97.224.169:8003/api/superadmin/login" \
   -H "Content-Type: application/json" \
   -d '{"email": "pittisunilkumar3@gmail.com", "password": "StrongPassword@123"}' \
   | jq -r '.access_token')
 
 # 2. Create branch manager
-curl -X POST "http://localhost:8003/api/branch-managers" \
+curl -X POST "http://31.97.224.169:8003/api/branch-managers" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -419,7 +419,7 @@ curl -X POST "http://localhost:8003/api/branch-managers" \
 ### Test Branch Manager Login
 ```bash
 # Test login with created branch manager
-curl -X POST "http://localhost:8003/api/branch-managers/login" \
+curl -X POST "http://31.97.224.169:8003/api/branch-managers/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "test.manager@example.com",
@@ -473,7 +473,7 @@ Authenticates a branch manager and returns a JWT token.
 
 **Example:**
 ```bash
-curl -X POST "http://localhost:8003/api/branch-managers/login" \
+curl -X POST "http://31.97.224.169:8003/api/branch-managers/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "test.manager@example.com",

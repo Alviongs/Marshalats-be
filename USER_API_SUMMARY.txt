@@ -63,7 +63,7 @@
    1. Start server: python server.py
    2. Get token from appropriate login endpoint
    3. Use Authorization header: Bearer <token>
-   4. Make request: GET http://localhost:8003/api/users
+   4. Make request: GET http://31.97.224.169:8003/api/users
 
 💡 USAGE EXAMPLES:
 

@@ -5,7 +5,7 @@ The Course Management API provides comprehensive functionality for managing mart
 
 ## Base URL
 ```
-Development: http://localhost:8003/api/courses
+Development: http://31.97.224.169:8003/api/courses
 Production: https://edumanage-44.preview.dev.com/api/courses
 ```
 
@@ -20,7 +20,7 @@ To get a superadmin token for course management:
 
 ```bash
 # Login as superadmin
-curl -X POST "http://localhost:8003/api/superadmin/login" \
+curl -X POST "http://31.97.224.169:8003/api/superadmin/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "superadmin@example.com",
@@ -400,7 +400,7 @@ Courses are organized by categories (category_id references):
 
 ### Create a New Course (Super Admin)
 ```bash
-curl -X POST "http://localhost:8003/api/courses" \
+curl -X POST "http://31.97.224.169:8003/api/courses" \
   -H "Authorization: Bearer <super_admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -428,13 +428,13 @@ curl -X POST "http://localhost:8003/api/courses" \
 
 ### Get Active Advanced Courses
 ```bash
-curl -X GET "http://localhost:8003/api/courses?difficulty_level=Advanced&active_only=true" \
+curl -X GET "http://31.97.224.169:8003/api/courses?difficulty_level=Advanced&active_only=true" \
   -H "Authorization: Bearer <token>"
 ```
 
 ### Update Course Pricing (Coach Admin)
 ```bash
-curl -X PUT "http://localhost:8003/api/courses/course-uuid-here" \
+curl -X PUT "http://31.97.224.169:8003/api/courses/course-uuid-here" \
   -H "Authorization: Bearer <coach_admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -476,7 +476,7 @@ curl -X PUT "http://localhost:8003/api/courses/course-uuid-here" \
 
 ### Step 1: Get Superadmin Token
 ```bash
-curl -X POST "http://localhost:8003/api/superadmin/login" \
+curl -X POST "http://31.97.224.169:8003/api/superadmin/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "superadmin@example.com",
@@ -486,7 +486,7 @@ curl -X POST "http://localhost:8003/api/superadmin/login" \
 
 ### Step 2: Create a Course
 ```bash
-curl -X POST "http://localhost:8003/api/courses" \
+curl -X POST "http://31.97.224.169:8003/api/courses" \
   -H "Authorization: Bearer <token_from_step_1>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -532,13 +532,13 @@ curl -X POST "http://localhost:8003/api/courses" \
 
 ### Step 3: Retrieve All Courses
 ```bash
-curl -X GET "http://localhost:8003/api/courses" \
+curl -X GET "http://31.97.224.169:8003/api/courses" \
   -H "Authorization: Bearer <token_from_step_1>"
 ```
 
 ### Step 4: Get Specific Course
 ```bash
-curl -X GET "http://localhost:8003/api/courses/<course_id_from_step_2>" \
+curl -X GET "http://31.97.224.169:8003/api/courses/<course_id_from_step_2>" \
   -H "Authorization: Bearer <token_from_step_1>"
 ```
 
