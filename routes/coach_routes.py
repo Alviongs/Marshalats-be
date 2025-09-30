@@ -88,6 +88,21 @@ async def deactivate_coach(
     """Deactivate coach (Super Admin and Branch Manager)"""
     return await CoachController.deactivate_coach(coach_id, request, current_user)
 
+@router.get("/public/by-course/{course_id}")
+async def get_coaches_by_course_public(
+    course_id: str
+):
+    """Get coaches assigned to a specific course - Public endpoint (no authentication required)"""
+    return await CoachController.get_coaches_by_course_public(course_id)
+
+@router.get("/by-course/{course_id}")
+async def get_coaches_by_course(
+    course_id: str,
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.COACH_ADMIN, UserRole.COACH, UserRole.BRANCH_MANAGER]))
+):
+    """Get coaches assigned to a specific course"""
+    return await CoachController.get_coaches_by_course(course_id, current_user)
+
 @router.get("/{coach_id}/courses")
 async def get_coach_courses(
     coach_id: str,

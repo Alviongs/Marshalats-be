@@ -639,6 +639,142 @@ class CoachController:
             raise HTTPException(status_code=500, detail=f"Error fetching coach courses: {str(e)}")
 
     @staticmethod
+    async def get_coaches_by_course(course_id: str, current_user: dict = None):
+        """Get coaches assigned to a specific course"""
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
+        db = get_db()
+
+        try:
+            # Verify course exists
+            course = await db.courses.find_one({"id": course_id})
+            if not course:
+                raise HTTPException(status_code=404, detail="Course not found")
+
+            # Find coaches assigned to this course in two ways:
+            # 1. Coaches who are the instructor for this course
+            # 2. Coaches who have this course in their assignment_details.courses
+
+            coaches = []
+
+            # Method 1: Find coach who is the instructor
+            if course.get("instructor_id"):
+                instructor = await db.coaches.find_one({
+                    "id": course["instructor_id"],
+                    "is_active": True
+                })
+                if instructor:
+                    coaches.append(instructor)
+
+            # Method 2: Find coaches with this course in their assignment_details
+            assigned_coaches = await db.coaches.find({
+                "assignment_details.courses": course_id,
+                "is_active": True
+            }).to_list(length=100)
+
+            # Merge coaches (avoid duplicates)
+            coach_ids_seen = {coach["id"] for coach in coaches}
+            for assigned_coach in assigned_coaches:
+                if assigned_coach["id"] not in coach_ids_seen:
+                    coaches.append(assigned_coach)
+
+            # Format coach data for response
+            formatted_coaches = []
+            for coach in coaches:
+                formatted_coach = {
+                    "id": coach["id"],
+                    "first_name": coach.get("first_name", ""),
+                    "last_name": coach.get("last_name", ""),
+                    "full_name": coach.get("full_name", f"{coach.get('first_name', '')} {coach.get('last_name', '')}".strip()),
+                    "email": coach.get("email", ""),
+                    "phone": coach.get("phone", ""),
+                    "areas_of_expertise": coach.get("areas_of_expertise", []),
+                    "is_active": coach.get("is_active", True),
+                    "branch_id": coach.get("branch_id"),
+                    "is_instructor": coach["id"] == course.get("instructor_id"),
+                    "is_assigned": course_id in coach.get("assignment_details", {}).get("courses", [])
+                }
+                formatted_coaches.append(formatted_coach)
+
+            return {
+                "coaches": formatted_coaches,
+                "total": len(formatted_coaches),
+                "course_id": course_id,
+                "course_title": course.get("title", "Unknown Course")
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error fetching coaches for course: {str(e)}")
+
+    @staticmethod
+    async def get_coaches_by_course_public(course_id: str):
+        """Get coaches assigned to a specific course - Public endpoint (no authentication required)"""
+        db = get_db()
+
+        try:
+            # Verify course exists
+            course = await db.courses.find_one({"id": course_id})
+            if not course:
+                raise HTTPException(status_code=404, detail="Course not found")
+
+            # Find coaches assigned to this course in two ways:
+            # 1. Coaches who are the instructor for this course
+            # 2. Coaches who have this course in their assignment_details.courses
+
+            coaches = []
+
+            # Method 1: Find coach who is the instructor
+            if course.get("instructor_id"):
+                instructor = await db.coaches.find_one({
+                    "id": course["instructor_id"],
+                    "is_active": True
+                })
+                if instructor:
+                    coaches.append(instructor)
+
+            # Method 2: Find coaches with this course in their assignment_details
+            assigned_coaches = await db.coaches.find({
+                "assignment_details.courses": course_id,
+                "is_active": True
+            }).to_list(length=50)  # Limit for public endpoint
+
+            # Merge coaches (avoid duplicates)
+            coach_ids_seen = {coach["id"] for coach in coaches}
+            for assigned_coach in assigned_coaches:
+                if assigned_coach["id"] not in coach_ids_seen:
+                    coaches.append(assigned_coach)
+
+            # Format coach data for response (limited info for public endpoint)
+            formatted_coaches = []
+            for coach in coaches:
+                formatted_coach = {
+                    "id": coach["id"],
+                    "first_name": coach.get("first_name", ""),
+                    "last_name": coach.get("last_name", ""),
+                    "full_name": coach.get("full_name", f"{coach.get('first_name', '')} {coach.get('last_name', '')}".strip()),
+                    "areas_of_expertise": coach.get("areas_of_expertise", []),
+                    "is_active": coach.get("is_active", True),
+                    "is_instructor": coach["id"] == course.get("instructor_id"),
+                    "is_assigned": course_id in coach.get("assignment_details", {}).get("courses", [])
+                }
+                formatted_coaches.append(formatted_coach)
+
+            return {
+                "coaches": formatted_coaches,
+                "total": len(formatted_coaches),
+                "course_id": course_id,
+                "course_title": course.get("title", "Unknown Course")
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error fetching coaches for course: {str(e)}")
+
+    @staticmethod
     async def get_coach_students(coach_id: str, current_user: dict = None):
         """Get students enrolled in courses taught by a specific coach"""
         if not current_user:

@@ -369,6 +369,36 @@ class PaymentController:
 
                 # Filter by branch_id in branch_details
                 base_filter["branch_details.branch_id"] = {"$in": managed_branch_ids}
+            elif current_role == "coach" or current_role == "coach_admin":
+                # Coaches can see stats from their assigned branch
+                coach_id = current_user.get("id")
+                if not coach_id:
+                    raise HTTPException(status_code=403, detail="Coach ID not found")
+
+                # Find coach's assigned branch
+                coach_data = await db.coaches.find_one({"id": coach_id})
+                if not coach_data:
+                    return {
+                        "total_collected": 0,
+                        "pending_payments": 0,
+                        "this_month_collection": 0,
+                        "total_students": 0
+                    }
+
+                # Get assigned branch from coach data
+                assigned_branch = coach_data.get("branch_id")
+                if not assigned_branch:
+                    return {
+                        "total_collected": 0,
+                        "pending_payments": 0,
+                        "this_month_collection": 0,
+                        "total_students": 0
+                    }
+
+                print(f"Coach {coach_id} has access to branch for payment stats: {assigned_branch}")
+
+                # Filter by branch_id in branch_details
+                base_filter["branch_details.branch_id"] = assigned_branch
 
         # Get total collected (paid payments)
         total_collected_pipeline = [
@@ -465,6 +495,26 @@ class PaymentController:
 
                     # Filter payments by branch_id in branch_details
                     filter_query["branch_details.branch_id"] = {"$in": managed_branch_ids}
+                elif current_role == "coach" or current_role == "coach_admin":
+                    # Coaches can see payments from their assigned branch
+                    coach_id = current_user.get("id")
+                    if not coach_id:
+                        raise HTTPException(status_code=403, detail="Coach ID not found")
+
+                    # Find coach's assigned branch
+                    coach_data = await db.coaches.find_one({"id": coach_id})
+                    if not coach_data:
+                        return {"payments": []}
+
+                    # Get assigned branch from coach data
+                    assigned_branch = coach_data.get("branch_id")
+                    if not assigned_branch:
+                        return {"payments": []}
+
+                    print(f"Coach {coach_id} has access to branch for payments: {assigned_branch}")
+
+                    # Filter payments by branch_id in branch_details
+                    filter_query["branch_details.branch_id"] = assigned_branch
 
             # Get payments with student information
             pipeline = [
