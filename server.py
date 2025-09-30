@@ -66,29 +66,19 @@ app = FastAPI(
 )
 
 # Add CORS middleware
-# Get CORS origins from environment or use default
-cors_origins = os.getenv("CORS_ORIGINS", "*")
-if cors_origins == "*":
-    allowed_origins = ["*"]
-else:
-    allowed_origins = [origin.strip() for origin in cors_origins.split(",")]
-
-# Add specific origins for your deployment
-allowed_origins_list = [
-    "http://localhost:3022",
-    "http://127.0.0.1:3022",
-    "http://31.97.224.169:3022",
-    "https://31.97.224.169:3022",
-    "*"  # Allow all origins as fallback
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins_list,
+    allow_origins=[
+        "http://localhost:3022",
+        "http://127.0.0.1:3022",
+        "http://31.97.224.169:3022",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "*"  # Allow all origins for development
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
-    expose_headers=["*"]
 )
 
 # Include routers
@@ -123,11 +113,6 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": "2024-01-01T00:00:00Z", "version": "updated-coach-auth"}
-
-# Add explicit OPTIONS handler for CORS preflight requests
-@app.options("/{full_path:path}")
-async def options_handler():
-    return {"message": "OK"}
 
 @app.get("/test-coach-auth")
 async def test_coach_auth():
