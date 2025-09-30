@@ -15,7 +15,7 @@ The following API endpoints have been implemented:
 ## Base URL
 
 ```
-Development: http://31.97.224.169:8003
+Development: http://localhost:8003
 Production: https://edumanage-44.preview.dev.com
 ```
 
@@ -82,7 +82,7 @@ Content-Type: application/json
 
 **cURL Example**:
 ```bash
-curl -X GET "http://31.97.224.169:8003/users/students/details" \
+curl -X GET "http://localhost:8003/users/students/details" \
   -H "Authorization: Bearer <your_token>"
 ```
 
@@ -139,7 +139,7 @@ curl -X GET "http://31.97.224.169:8003/users/students/details" \
 
 **cURL Example**:
 ```bash
-curl -X GET "http://31.97.224.169:8003/courses/public/all?active_only=true&limit=50"
+curl -X GET "http://localhost:8003/courses/public/all?active_only=true&limit=50"
 ```
 
 ---
@@ -400,7 +400,7 @@ curl -X GET "http://31.97.224.169:8003/courses/public/all?active_only=true&limit
 
 **cURL Example**:
 ```bash
-curl -X GET "http://31.97.224.169:8003/locations/public/with-branches?active_only=true"
+curl -X GET "http://localhost:8003/locations/public/with-branches?active_only=true"
 ```
 
 ---
@@ -510,7 +510,7 @@ The APIs implement proper RBAC:
 
 ```bash
 # First, get an authentication token
-curl -X POST "http://31.97.224.169:8003/auth/login" \
+curl -X POST "http://localhost:8003/auth/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@example.com",
@@ -518,7 +518,7 @@ curl -X POST "http://31.97.224.169:8003/auth/login" \
   }'
 
 # Use the token to get student details
-curl -X GET "http://31.97.224.169:8003/users/students/details" \
+curl -X GET "http://localhost:8003/users/students/details" \
   -H "Authorization: Bearer <token_from_login>"
 ```
 
@@ -526,17 +526,17 @@ curl -X GET "http://31.97.224.169:8003/users/students/details" \
 
 ```bash
 # No authentication required
-curl -X GET "http://31.97.224.169:8003/courses/public/all?active_only=true&limit=10"
+curl -X GET "http://localhost:8003/courses/public/all?active_only=true&limit=10"
 ```
 
 ### 3. Test Categories API
 
 ```bash
 # Public endpoint - no auth required
-curl -X GET "http://31.97.224.169:8003/categories/public/all?include_subcategories=true"
+curl -X GET "http://localhost:8003/categories/public/all?include_subcategories=true"
 
 # Create category (requires Super Admin token)
-curl -X POST "http://31.97.224.169:8003/categories" \
+curl -X POST "http://localhost:8003/categories" \
   -H "Authorization: Bearer <super_admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -552,10 +552,10 @@ curl -X POST "http://31.97.224.169:8003/categories" \
 
 ```bash
 # Public endpoint
-curl -X GET "http://31.97.224.169:8003/durations/public/all"
+curl -X GET "http://localhost:8003/durations/public/all"
 
 # Create duration (requires Super Admin token)
-curl -X POST "http://31.97.224.169:8003/durations" \
+curl -X POST "http://localhost:8003/durations" \
   -H "Authorization: Bearer <super_admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -571,7 +571,7 @@ curl -X POST "http://31.97.224.169:8003/durations" \
 
 ```bash
 # Public endpoint
-curl -X GET "http://31.97.224.169:8003/locations/public/with-branches?active_only=true"
+curl -X GET "http://localhost:8003/locations/public/with-branches?active_only=true"
 ```
 
 ---
@@ -623,7 +623,7 @@ A Postman collection with all the new endpoints is available. Import the followi
   "variable": [
     {
       "key": "base_url",
-      "value": "http://31.97.224.169:8003"
+      "value": "http://localhost:8003"
     },
     {
       "key": "token",

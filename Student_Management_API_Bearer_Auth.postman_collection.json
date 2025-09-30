@@ -28,7 +28,7 @@
   "variable": [
     {
       "key": "base_url",
-      "value": "http://31.97.224.169:8003/api",
+      "value": "http://localhost:8003/api",
       "type": "string"
     },
     {

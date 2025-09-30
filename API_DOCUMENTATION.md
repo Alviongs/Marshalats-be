@@ -6,7 +6,7 @@ This is a comprehensive Student Management System API built with FastAPI, suppor
 ## Base URL
 ```
 Production: https://edumanage-44.preview.dev.com/api
-Development: http://31.97.224.169:8003/api
+Development: http://localhost:8003/api
 ```
 
 ## HTTP Status Codes
@@ -128,7 +128,7 @@ python server.py
 
 **Step 2: Test Coach Creation (Without Auth - Will Fail)**
 ```bash
-curl -X POST "http://31.97.224.169:8003/api/coaches" \
+curl -X POST "http://localhost:8003/api/coaches" \
   -H "Content-Type: application/json" \
   -d '{
     "personal_info": {
@@ -170,7 +170,7 @@ curl -X POST "http://31.97.224.169:8003/api/coaches" \
 
 **Step 3: Get Authentication Token (Login with existing user)**
 ```bash
-curl -X POST "http://31.97.224.169:8003/api/auth/login" \
+curl -X POST "http://localhost:8003/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@example.com",
@@ -181,7 +181,7 @@ curl -X POST "http://31.97.224.169:8003/api/auth/login" \
 **Step 4: Use Token for Coach Creation**
 ```bash
 # Replace YOUR_TOKEN_HERE with actual token from login response
-curl -X POST "http://31.97.224.169:8003/api/coaches" \
+curl -X POST "http://localhost:8003/api/coaches" \
   -H "Authorization: Bearer YOUR_TOKEN_HERE" \
   -H "Content-Type: application/json" \
   -d '{
@@ -218,20 +218,20 @@ curl -X POST "http://31.97.224.169:8003/api/coaches" \
 ### 2. API Documentation Access
 ```bash
 # Interactive API Documentation (Swagger UI)
-http://31.97.224.169:8003/docs
+http://localhost:8003/docs
 
 # Alternative API Documentation (ReDoc)
-http://31.97.224.169:8003/redoc
+http://localhost:8003/redoc
 
 # OpenAPI JSON Schema
-http://31.97.224.169:8003/openapi.json
+http://localhost:8003/openapi.json
 ```
 
 ### 3. Common Test Commands
 
 **Coach Login**:
 ```bash
-curl -X POST "http://31.97.224.169:8003/api/coaches/login" \
+curl -X POST "http://localhost:8003/api/coaches/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "coach@example.com",
@@ -241,25 +241,25 @@ curl -X POST "http://31.97.224.169:8003/api/coaches/login" \
 
 **Get Coach Profile** (after login):
 ```bash
-curl -X GET "http://31.97.224.169:8003/api/coaches/me" \
+curl -X GET "http://localhost:8003/api/coaches/me" \
   -H "Authorization: Bearer COACH_TOKEN_HERE"
 ```
 
 **Get All Coaches** (Admin only):
 ```bash
-curl -X GET "http://31.97.224.169:8003/api/coaches" \
+curl -X GET "http://localhost:8003/api/coaches" \
   -H "Authorization: Bearer ADMIN_TOKEN_HERE"
 ```
 
 **Get Coach Statistics** (Admin only):
 ```bash
-curl -X GET "http://31.97.224.169:8003/api/coaches/stats/overview" \
+curl -X GET "http://localhost:8003/api/coaches/stats/overview" \
   -H "Authorization: Bearer ADMIN_TOKEN_HERE"
 ```
 
 **Update Coach** (Admin only):
 ```bash
-curl -X PUT "http://31.97.224.169:8003/api/coaches/COACH_ID_HERE" \
+curl -X PUT "http://localhost:8003/api/coaches/COACH_ID_HERE" \
   -H "Authorization: Bearer YOUR_TOKEN_HERE" \
   -H "Content-Type: application/json" \
   -d '{
@@ -315,16 +315,16 @@ Many endpoints support filtering:
 ### Authentication Errors
 ```bash
 # Missing token
-curl -X GET "http://31.97.224.169:8003/api/coaches"
+curl -X GET "http://localhost:8003/api/coaches"
 # Response: 401 {"detail": "Not authenticated"}
 
 # Invalid token
-curl -X GET "http://31.97.224.169:8003/api/coaches" \
+curl -X GET "http://localhost:8003/api/coaches" \
   -H "Authorization: Bearer invalid_token"
 # Response: 401 {"detail": "Could not validate credentials"}
 
 # Expired token
-curl -X GET "http://31.97.224.169:8003/api/coaches" \
+curl -X GET "http://localhost:8003/api/coaches" \
   -H "Authorization: Bearer expired_token"
 # Response: 401 {"detail": "Token has expired"}
 ```
@@ -332,14 +332,14 @@ curl -X GET "http://31.97.224.169:8003/api/coaches" \
 ### Validation Errors
 ```bash
 # Missing required fields
-curl -X POST "http://31.97.224.169:8003/api/coaches" \
+curl -X POST "http://localhost:8003/api/coaches" \
   -H "Authorization: Bearer valid_token" \
   -H "Content-Type: application/json" \
   -d '{}'
 # Response: 422 with detailed validation errors
 
 # Invalid email format
-curl -X POST "http://31.97.224.169:8003/api/coaches" \
+curl -X POST "http://localhost:8003/api/coaches" \
   -H "Authorization: Bearer valid_token" \
   -H "Content-Type: application/json" \
   -d '{"contact_info": {"email": "invalid-email"}}'
@@ -349,7 +349,7 @@ curl -X POST "http://31.97.224.169:8003/api/coaches" \
 ### Permission Errors
 ```bash
 # Insufficient permissions (non-admin trying to create coach)
-curl -X POST "http://31.97.224.169:8003/api/coaches" \
+curl -X POST "http://localhost:8003/api/coaches" \
   -H "Authorization: Bearer student_token" \
   -H "Content-Type: application/json" \
   -d '{...}'
@@ -359,12 +359,12 @@ curl -X POST "http://31.97.224.169:8003/api/coaches" \
 ### Example Authentication Flow
 ```bash
 # Step 1: Login to get token
-curl -X POST http://31.97.224.169:8003/api/auth/login \
+curl -X POST http://localhost:8003/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com", "password": "password123"}'
 
 # Step 2: Use token in protected requests
-curl -X GET http://31.97.224.169:8003/api/auth/me \
+curl -X GET http://localhost:8003/api/auth/me \
   -H "Authorization: Bearer your_token_here" \
   -H "Content-Type: application/json"
 ```
@@ -459,7 +459,7 @@ python test_auth_bearer.py
 python simple_auth_test.py
 
 # Test specific endpoints
-curl -X POST http://31.97.224.169:8003/api/auth/login \
+curl -X POST http://localhost:8003/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "superadmin@test.com", "password": "SuperAdmin123!"}'
 ```
@@ -516,7 +516,7 @@ curl -X POST http://31.97.224.169:8003/api/auth/login \
 
 **cURL Example**:
 ```bash
-curl -X POST http://31.97.224.169:8003/api/superadmin/register \
+curl -X POST http://localhost:8003/api/superadmin/register \
   -H "Content-Type: application/json" \
   -d '{
     "full_name": "Super Admin",
@@ -564,7 +564,7 @@ curl -X POST http://31.97.224.169:8003/api/superadmin/register \
 
 **cURL Example**:
 ```bash
-curl -X POST http://31.97.224.169:8003/api/superadmin/login \
+curl -X POST http://localhost:8003/api/superadmin/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@company.com",
@@ -611,7 +611,7 @@ Authorization: Bearer <super_admin_jwt_token>
 
 **cURL Example**:
 ```bash
-curl -X GET http://31.97.224.169:8003/api/superadmin/me \
+curl -X GET http://localhost:8003/api/superadmin/me \
   -H "Authorization: Bearer your_superadmin_token_here" \
   -H "Content-Type: application/json"
 ```
@@ -641,7 +641,7 @@ Authorization: Bearer <super_admin_jwt_token>
 
 **cURL Example**:
 ```bash
-curl -X GET http://31.97.224.169:8003/api/superadmin/verify-token \
+curl -X GET http://localhost:8003/api/superadmin/verify-token \
   -H "Authorization: Bearer your_superadmin_token_here" \
   -H "Content-Type: application/json"
 ```
@@ -705,7 +705,7 @@ curl -X GET http://31.97.224.169:8003/api/superadmin/verify-token \
 
 **cURL Example**:
 ```bash
-curl -X POST http://31.97.224.169:8003/api/auth/register \
+curl -X POST http://localhost:8003/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "newuser@example.com",
@@ -826,7 +826,7 @@ curl -X POST http://31.97.224.169:8003/api/auth/register \
 
 **cURL Example**:
 ```bash
-curl -X POST http://31.97.224.169:8003/api/auth/login \
+curl -X POST http://localhost:8003/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "superadmin@test.com",
@@ -873,7 +873,7 @@ Authorization: Bearer <your_jwt_token>
 
 **cURL Example**:
 ```bash
-curl -X GET http://31.97.224.169:8003/api/auth/me \
+curl -X GET http://localhost:8003/api/auth/me \
   -H "Authorization: Bearer your_token_here" \
   -H "Content-Type: application/json"
 ```
@@ -1048,7 +1048,7 @@ Authorization: Bearer <your_jwt_token>
 
 **cURL Example**:
 ```bash
-curl -X POST "http://31.97.224.169:8003/api/coaches/login" \
+curl -X POST "http://localhost:8003/api/coaches/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "coach@example.com",
@@ -2015,7 +2015,7 @@ Content-Type: application/json
 
 **cURL Example**:
 ```bash
-curl -X POST http://31.97.224.169:8003/api/branches \
+curl -X POST http://localhost:8003/api/branches \
   -H "Authorization: Bearer your_token_here" \
   -H "Content-Type: application/json" \
   -d '{
@@ -2317,7 +2317,7 @@ Content-Type: application/json
 
 **cURL Example**:
 ```bash
-curl -X POST http://31.97.224.169:8003/api/courses \
+curl -X POST http://localhost:8003/api/courses \
   -H "Authorization: Bearer your_token_here" \
   -H "Content-Type: application/json" \
   -d '{
@@ -2528,7 +2528,7 @@ curl -X POST http://31.97.224.169:8003/api/courses \
 
 ### 1. Super Admin Registration (First Time Setup)
 ```bash
-curl -X POST http://31.97.224.169:8003/api/superadmin/register \
+curl -X POST http://localhost:8003/api/superadmin/register \
   -H "Content-Type: application/json" \
   -d '{
     "full_name": "System Administrator",
@@ -2540,7 +2540,7 @@ curl -X POST http://31.97.224.169:8003/api/superadmin/register \
 
 ### 2. Super Admin Login
 ```bash
-curl -X POST http://31.97.224.169:8003/api/superadmin/login \
+curl -X POST http://localhost:8003/api/superadmin/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@company.com",
@@ -2551,14 +2551,14 @@ curl -X POST http://31.97.224.169:8003/api/superadmin/login \
 
 ### 3. Verify Super Admin Token
 ```bash
-curl -X GET http://31.97.224.169:8003/api/superadmin/verify-token \
+curl -X GET http://localhost:8003/api/superadmin/verify-token \
   -H "Authorization: Bearer YOUR_SUPERADMIN_TOKEN" \
   -H "Content-Type: application/json"
 ```
 
 ### 4. Get Super Admin Profile
 ```bash
-curl -X GET http://31.97.224.169:8003/api/superadmin/me \
+curl -X GET http://localhost:8003/api/superadmin/me \
   -H "Authorization: Bearer YOUR_SUPERADMIN_TOKEN" \
   -H "Content-Type: application/json"
 ```
@@ -2569,7 +2569,7 @@ curl -X GET http://31.97.224.169:8003/api/superadmin/me \
 
 ### 1. User Registration (Public)
 ```bash
-curl -X POST http://31.97.224.169:8003/api/auth/register \
+curl -X POST http://localhost:8003/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "newstudent@example.com",
@@ -2594,7 +2594,7 @@ curl -X POST http://31.97.224.169:8003/api/auth/register \
 
 ### 2. User Login
 ```bash
-curl -X POST http://31.97.224.169:8003/api/auth/login \
+curl -X POST http://localhost:8003/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "newstudent@example.com",
@@ -2605,7 +2605,7 @@ curl -X POST http://31.97.224.169:8003/api/auth/login \
 
 ### 3. Get Current User Info
 ```bash
-curl -X GET http://31.97.224.169:8003/api/auth/me \
+curl -X GET http://localhost:8003/api/auth/me \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json"
 ```
@@ -2614,7 +2614,7 @@ curl -X GET http://31.97.224.169:8003/api/auth/me \
 
 ### 1. Create Comprehensive Branch (Super Admin Only)
 ```bash
-curl -X POST http://31.97.224.169:8003/api/branches \
+curl -X POST http://localhost:8003/api/branches \
   -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -2669,14 +2669,14 @@ curl -X POST http://31.97.224.169:8003/api/branches \
 
 ### 2. Get All Branches
 ```bash
-curl -X GET http://31.97.224.169:8003/api/branches \
+curl -X GET http://localhost:8003/api/branches \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json"
 ```
 
 ### 3. Get Specific Branch
 ```bash
-curl -X GET http://31.97.224.169:8003/api/branches/BRANCH_ID \
+curl -X GET http://localhost:8003/api/branches/BRANCH_ID \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json"
 ```
@@ -2685,7 +2685,7 @@ curl -X GET http://31.97.224.169:8003/api/branches/BRANCH_ID \
 
 ### 1. Create Comprehensive Course (Super Admin Only)
 ```bash
-curl -X POST http://31.97.224.169:8003/api/courses \
+curl -X POST http://localhost:8003/api/courses \
   -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -2731,14 +2731,14 @@ curl -X POST http://31.97.224.169:8003/api/courses \
 
 ### 2. Get All Courses
 ```bash
-curl -X GET http://31.97.224.169:8003/api/courses \
+curl -X GET http://localhost:8003/api/courses \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json"
 ```
 
 ### 3. Get Specific Course
 ```bash
-curl -X GET http://31.97.224.169:8003/api/courses/COURSE_ID \
+curl -X GET http://localhost:8003/api/courses/COURSE_ID \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json"
 ```
@@ -2746,12 +2746,12 @@ curl -X GET http://31.97.224.169:8003/api/courses/COURSE_ID \
 ### 4. Filter Courses
 ```bash
 # Filter by difficulty level
-curl -X GET "http://31.97.224.169:8003/api/courses?difficulty_level=Advanced" \
+curl -X GET "http://localhost:8003/api/courses?difficulty_level=Advanced" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json"
 
 # Filter by category and instructor
-curl -X GET "http://31.97.224.169:8003/api/courses?category_id=cat-uuid&instructor_id=instructor-uuid" \
+curl -X GET "http://localhost:8003/api/courses?category_id=cat-uuid&instructor_id=instructor-uuid" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json"
 ```
@@ -2760,7 +2760,7 @@ curl -X GET "http://31.97.224.169:8003/api/courses?category_id=cat-uuid&instruct
 
 ### 1. Create New Coach with Nested Structure (Admin Only)
 ```bash
-curl -X POST http://31.97.224.169:8003/api/users/coaches \
+curl -X POST http://localhost:8003/api/users/coaches \
   -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -2806,14 +2806,14 @@ curl -X POST http://31.97.224.169:8003/api/users/coaches \
 
 ### 2. Get All Users (Admin Only)
 ```bash
-curl -X GET http://31.97.224.169:8003/api/users \
+curl -X GET http://localhost:8003/api/users \
   -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
   -H "Content-Type: application/json"
 ```
 
 ### 3. Create New User (Admin Only)
 ```bash
-curl -X POST http://31.97.224.169:8003/api/users \
+curl -X POST http://localhost:8003/api/users \
   -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -2927,7 +2927,7 @@ lsof -i :8001  # Linux/macOS
 **2. Authentication Issues**
 ```bash
 # Test token validity
-curl -X GET "http://31.97.224.169:8003/api/auth/me" \
+curl -X GET "http://localhost:8003/api/auth/me" \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # Expected response: User profile (200 OK)
@@ -2944,7 +2944,7 @@ curl -X GET "http://31.97.224.169:8003/api/auth/me" \
 **4. CORS Issues**
 ```javascript
 // Frontend JavaScript example
-fetch('http://31.97.224.169:8003/api/coaches', {
+fetch('http://localhost:8003/api/coaches', {
   method: 'GET',
   headers: {
     'Authorization': 'Bearer ' + token,
@@ -2962,9 +2962,9 @@ fetch('http://31.97.224.169:8003/api/coaches', {
 - **Phone Format**: Country code + phone number
 
 ### Support
-- **API Documentation**: `http://31.97.224.169:8003/docs` (Swagger UI)
-- **Alternative Docs**: `http://31.97.224.169:8003/redoc` (ReDoc)
-- **OpenAPI Schema**: `http://31.97.224.169:8003/openapi.json`
+- **API Documentation**: `http://localhost:8003/docs` (Swagger UI)
+- **Alternative Docs**: `http://localhost:8003/redoc` (ReDoc)
+- **OpenAPI Schema**: `http://localhost:8003/openapi.json`
 
 ### Version Information
 - **API Version**: 1.0
