@@ -61,6 +61,7 @@ class CoachUpdate(BaseModel):
     branch_id: Optional[str] = None  # Branch assignment for the coach
     assignment_details: Optional[AssignmentDetails] = None  # Course assignments and other details
     emergency_contact: Optional[EmergencyContact] = None  # Emergency contact information
+    is_active: Optional[bool] = None  # Coach active/inactive status
 
 class CoachLogin(BaseModel):
     email: EmailStr

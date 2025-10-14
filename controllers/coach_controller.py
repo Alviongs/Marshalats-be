@@ -338,6 +338,9 @@ class CoachController:
         if coach_update.emergency_contact is not None:  # Allow updating emergency contact
             update_data["emergency_contact"] = coach_update.emergency_contact.dict()
 
+        if coach_update.is_active is not None:  # Allow updating active status
+            update_data["is_active"] = coach_update.is_active
+
         if not update_data:
             raise HTTPException(status_code=400, detail="No update data provided")
         
@@ -498,6 +501,50 @@ class CoachController:
         )
 
         return {"message": "Coach deactivated successfully"}
+
+    @staticmethod
+    async def activate_coach(
+        coach_id: str,
+        request: Request,
+        current_admin: dict
+    ):
+        """Activate coach"""
+        db = get_db()
+
+        # First, get the coach to check if it exists and get branch info
+        coach = await db.coaches.find_one({"id": coach_id})
+        if not coach:
+            raise HTTPException(status_code=404, detail="Coach not found")
+
+        # If current user is a branch manager, ensure they can only activate coaches from their branch
+        current_role = current_admin.get("role")
+        if current_role == "branch_manager":
+            branch_assignment = current_admin.get("branch_assignment")
+            if not branch_assignment or not branch_assignment.get("branch_id"):
+                raise HTTPException(status_code=403, detail="No branch assigned to this manager")
+
+            # Check if the coach belongs to the branch manager's branch
+            if coach.get("branch_id") != branch_assignment["branch_id"]:
+                raise HTTPException(status_code=403, detail="You can only activate coaches from your assigned branch")
+
+        result = await db.coaches.update_one(
+            {"id": coach_id},
+            {"$set": {"is_active": True, "updated_at": datetime.utcnow()}}
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Coach not found")
+
+        # Log activity
+        await log_activity(
+            request=request,
+            action="coach_activation",
+            user_id=current_admin["id"],
+            user_name=current_admin.get("full_name", "Admin"),
+            details={"activated_coach_id": coach_id}
+        )
+
+        return {"message": "Coach activated successfully"}
 
     @staticmethod
     async def get_coach_courses(coach_id: str, current_user: dict = None):

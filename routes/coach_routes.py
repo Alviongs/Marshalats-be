@@ -88,6 +88,15 @@ async def deactivate_coach(
     """Deactivate coach (Super Admin and Branch Manager)"""
     return await CoachController.deactivate_coach(coach_id, request, current_user)
 
+@router.patch("/{coach_id}/activate")
+async def activate_coach(
+    coach_id: str,
+    request: Request,
+    current_user: dict = Depends(require_role_unified([UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER]))
+):
+    """Activate coach (Super Admin and Branch Manager)"""
+    return await CoachController.activate_coach(coach_id, request, current_user)
+
 @router.get("/public/by-course/{course_id}")
 async def get_coaches_by_course_public(
     course_id: str
